@@ -5,7 +5,7 @@
   // Put the number here in international form, digits only: 91 then the
   // ten-digit number, e.g. '919876543210'. Leave it empty and the WhatsApp
   // tile quietly turns into an email link instead of a dead button.
-  var WHATSAPP = 'WHATSAPP_NUMBER';
+  var WHATSAPP = '919910144125';
 
   var wa = document.getElementById('waLink');
   if (wa) {
