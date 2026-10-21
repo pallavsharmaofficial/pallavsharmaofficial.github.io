@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Send your requirements — Pallav Sharma</title>
+<meta name="description" content="Tell me what you want built. A few questions, and you get an honest answer the same day about scope, time and cost.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=Mukta:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/kundlisaar.png">
+<meta name="theme-color" content="#111317">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav class="topbar"><div class="wrap">
+  <a href="./" class="back">← Pallav Sharma</a>
+  <a href="#form" class="btn small primary">Jump to the form</a>
+</div></nav>
+
+<header class="case slim">
+  <div class="wrap narrow">
+    <p class="kicker">Requirements · प्रस्ताव</p>
+    <h1>Tell me what you want built.</h1>
+    <p class="lede">The more of this you fill in, the more useful my answer
+      is. Nothing here is compulsory — if you only know the first two, send
+      that and we will work the rest out together.</p>
+  </div>
+</header>
+
+<section><div class="wrap narrow">
+  <h2>How I work</h2>
+  <div class="steps">
+    <div><b>1</b><p><strong>You write.</strong> The form below, or WhatsApp,
+      whichever suits. A rough idea is enough to start.</p></div>
+    <div><b>2</b><p><strong>I answer the same day</strong> with what I think
+      it takes: scope, how long, what it costs, and what I would leave out of
+      a first version.</p></div>
+    <div><b>3</b><p><strong>We agree a small first piece</strong> — something
+      running you can hold in two or three weeks, not a six-month promise.</p></div>
+    <div><b>4</b><p><strong>You see it as it is built.</strong> Work goes up
+      where you can open it and try it yourself, every week.</p></div>
+  </div>
+  <p class="note">If I think your idea is better served by something that
+    already exists, or by someone else, I will tell you that instead of
+    quoting for it.</p>
+</div></section>
+
+<section class="alt" id="form"><div class="wrap narrow">
+  <h2>Your requirements</h2>
+  <form id="enquiry" class="form" action="https://api.web3forms.com/submit" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="access_key" value="WEB3FORMS_ACCESS_KEY">
+    <input type="hidden" name="subject" value="New project requirements from your portfolio">
+    <input type="hidden" name="from_name" value="pallavsharmaofficial.github.io">
+    <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off">
+
+    <div class="row">
+      <label>Your name · नाम
+        <input type="text" name="name" required autocomplete="name">
+      </label>
+      <label>Phone or email · फ़ोन या ईमेल
+        <input type="text" name="contact" required>
+      </label>
+    </div>
+
+    <div class="row">
+      <label>Company or project · कंपनी या प्रोजेक्ट
+        <input type="text" name="company">
+      </label>
+      <label>What kind of work?
+        <select name="kind">
+          <option>A new app, from scratch</option>
+          <option>An existing app to fix or finish</option>
+          <option>A website</option>
+          <option>Something computational or unusual</option>
+          <option>A kundli report or consultation</option>
+          <option>Not sure yet</option>
+        </select>
+      </label>
+    </div>
+
+    <label>What should it do? · यह क्या करेगा?
+      <textarea name="what" rows="5" required
+        placeholder="Describe it the way you would to a friend. Who uses it, and what do they get out of it?"></textarea>
+    </label>
+
+    <label>Who is it for? · किसके लिए है?
+      <input type="text" name="audience"
+        placeholder="e.g. shopkeepers in small towns, students, our field staff">
+    </label>
+
+    <div class="row">
+      <label>Platforms
+        <select name="platform">
+          <option>Android</option>
+          <option>Android and iOS</option>
+          <option>Android, iOS and web</option>
+          <option>Web only</option>
+          <option>Not sure</option>
+        </select>
+      </label>
+      <label>When do you need it? · कब तक चाहिए?
+        <select name="timing">
+          <option>As soon as possible</option>
+          <option>Within a month</option>
+          <option>One to three months</option>
+          <option>No fixed date</option>
+        </select>
+      </label>
+    </div>
+
+    <label>Budget range · बजट
+      <select name="budget">
+        <option>Not sure — tell me what it should cost</option>
+        <option>Under ₹50,000</option>
+        <option>₹50,000 – ₹2,00,000</option>
+        <option>₹2,00,000 – ₹5,00,000</option>
+        <option>Above ₹5,00,000</option>
+      </select>
+      <span class="hint">An honest range helps more than a guess. If you have
+        no idea, say so and I will tell you what it usually takes.</span>
+    </label>
+
+    <label>Anything else · और कुछ
+      <textarea name="notes" rows="3"
+        placeholder="Apps you like the look of, constraints, who else is involved, anything that matters."></textarea>
+    </label>
+
+    <label class="file">Attach a file (optional) · फ़ाइल लगाइए
+      <input type="file" name="attachment">
+      <span class="hint">A brief, a sketch, a spreadsheet — whatever you have.</span>
+    </label>
+
+    <button class="btn primary" type="submit">Send requirements · भेजिए</button>
+    <p class="status" id="formStatus" role="status"></p>
+  </form>
+
+  <div class="reach" style="margin-top:22px">
+    <a class="reach-item wa" id="waLink" href="#"><b>WhatsApp</b><span>सबसे तेज़</span></a>
+    <a class="reach-item" href="mailto:pallavsharmaofficial@gmail.com"><b>Email</b><span>pallavsharmaofficial@gmail.com</span></a>
+    <a class="reach-item" href="https://github.com/pallavsharmaofficial"><b>GitHub</b><span>pallavsharmaofficial</span></a>
+  </div>
+</div></section>
+
+<footer><div class="wrap"><p><a href="./">← Back to the work</a></p></div></footer>
+<script src="main.js"></script>
+</body>
+</html>
