@@ -42,6 +42,11 @@ APPS = [
                 'It refuses to predict death, illness, pregnancy, exam '
                 'results, court outcomes or investments, and it never sells a '
                 'remedy out of fear.',
+                'The app will also hand you the whole reading as a PDF: 127 '
+                'pages of it, in Hindi, typeset in the app with an OpenType '
+                'shaper written for the purpose, because the PDF library does '
+                'no Indic shaping and Hindi would otherwise print as loose '
+                'letters. Most free kundli apps give you 25 to 30 pages.',
             ]),
         ],
         facts=['450+ tests', '~1 arcsecond, 1900–2070', '7,084 Indian towns',
@@ -53,6 +58,7 @@ APPS = [
                ('05-hastrekha', 'Palm reading from a photograph'),
                ('06-home', 'Everything on one screen')],
         links=[('Open the app', 'https://pallavsharmaofficial.github.io/KundliSaar/app/'),
+               ('Sample report, 127 pages', '../assets/sample-kundli.pdf'),
                ('Source', 'https://github.com/pallavsharmaofficial/KundliSaar')],
     ),
     dict(
