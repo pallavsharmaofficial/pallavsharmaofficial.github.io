@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pallav Sharma — apps that work offline, in Hindi and English</title>
+<meta name="description" content="I build Flutter apps that run entirely on the phone: no server, no account, nothing uploaded. Four on the Play Store, including a Vedic astrology engine fitted to NASA JPL data.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=Mukta:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="assets/kundlisaar.png">
+<meta name="theme-color" content="#111317">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Pallav Sharma — apps that work offline">
+<meta property="og:description" content="Flutter apps that run entirely on the phone. No server, no account, nothing uploaded.">
+<meta property="og:url" content="https://pallavsharmaofficial.github.io/">
+<link rel="canonical" href="https://pallavsharmaofficial.github.io/">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <p class="kicker">Pallav Sharma · पल्लव शर्मा</p>
+    <h1>I build apps that keep working<br><em>when the internet stops.</em></h1>
+    <p class="lede">
+      Four apps on the Play Store, all of them Flutter, all of them bilingual,
+      all of them running entirely on the phone — no server, no account,
+      nothing uploaded. One of them computes the planets from a solar-system
+      model I fitted to NASA JPL's own data, accurate to about an arcsecond,
+      offline.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#build">I need an app built</a>
+      <a class="btn ghost" href="#kundli">I want a kundli</a>
+    </div>
+  </div>
+</header>
+
+<section class="proof">
+  <div class="wrap grid-4">
+    <div><b>4</b><span>apps shipped</span></div>
+    <div><b>450+</b><span>tests on one engine</span></div>
+    <div><b>1″</b><span>ephemeris accuracy</span></div>
+    <div><b>2</b><span>languages, everywhere</span></div>
+  </div>
+</section>
+
+<section id="work">
+  <div class="wrap">
+    <h2>What I have actually shipped</h2>
+    <p class="sub">Not mockups. Public repositories, running apps, and the
+      engineering written down so it can be checked.</p>
+
+    <article class="card feature">
+      <img src="assets/kundlisaar.png" alt="" class="icon">
+      <div class="body">
+        <h3>KundliSaar <span class="tag">Flutter · Dart</span></h3>
+        <p>A Vedic astrology app with <b>its own ephemeris</b>. Rather than
+          licence Swiss Ephemeris — which would have forced the whole project
+          open under AGPL — I fitted a Poisson series to JPL's DE440s and
+          emitted it as Dart tables. Planetary longitudes land within about an
+          arcsecond from 1900 to 2070, computed on the handset with the radio
+          off.</p>
+        <p>On top of that: sixteen divisional charts, Vimshottari to three
+          levels with dated periods, a full panchang checked against published
+          almanacs to the minute, Tajika varshphal, ashtakavarga, shadbala,
+          and a predictive layer that names the chart factor behind every
+          sentence it writes.</p>
+        <ul class="facts">
+          <li>450+ tests, verified against skyfield and DE440s</li>
+          <li>7,084 Indian towns, searchable without diacritics</li>
+          <li>Hindi and English throughout; nothing leaves the device</li>
+        </ul>
+        <p class="links">
+          <a href="https://pallavsharmaofficial.github.io/KundliSaar/app/">Open the app</a>
+          <a href="https://github.com/pallavsharmaofficial/KundliSaar">Source</a>
+        </p>
+      </div>
+      <img src="assets/kundlisaar-shot.png" alt="KundliSaar birth chart screen" class="shot">
+    </article>
+
+    <div class="cards-3">
+      <article class="card">
+        <p class="mono" aria-hidden="true">सु</p>
+        <h3>SurSaar</h3>
+        <p>A guitar teacher that listens. Pitch detection and chord tracking
+          run on the device, so practice works on a train with no signal.</p>
+        <p class="links"><a href="https://github.com/pallavsharmaofficial/SurSaar">Source</a></p>
+      </article>
+      <article class="card">
+        <p class="mono" aria-hidden="true">व्यू</p>
+        <h3>Vyuhbhed</h3>
+        <p>A job hunt run like a campaign: a daily plan for the notice period,
+          scored mock interviews, resume review. Offline by default.</p>
+        <p class="links"><a href="https://github.com/pallavsharmaofficial/vyuhbhed">Source</a></p>
+      </article>
+      <article class="card">
+        <p class="mono" aria-hidden="true">सा</p>
+        <h3>Saath</h3>
+        <p>A relationship counsellor that runs entirely on the phone, because
+          this is the last thing anyone should upload to a server.</p>
+        <p class="links"><a href="https://github.com/pallavsharmaofficial/saath">Source</a></p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section id="build" class="alt">
+  <div class="wrap">
+    <h2>Need an app built?</h2>
+    <p class="sub">What I am good at, stated plainly so you can tell whether
+      I am the right person.</p>
+    <div class="cols">
+      <div>
+        <h4>Cross-platform apps</h4>
+        <p>Flutter, one codebase, Android and iOS and web. Shipped to the Play
+          Store with CI that builds, tests and releases on a push.</p>
+      </div>
+      <div>
+        <h4>Offline-first and on-device</h4>
+        <p>Apps that keep working with no signal, and that hold private data
+          on the handset instead of on someone's server. This is harder than
+          it sounds and it is most of what I do.</p>
+      </div>
+      <div>
+        <h4>Hard computation</h4>
+        <p>Where the maths is the product: astronomy, signal processing,
+          anything that has to be right and has to be fast on a cheap phone.</p>
+      </div>
+      <div>
+        <h4>Bilingual from the start</h4>
+        <p>Hindi and English as equals, not an afterthought translation. Every
+          app above reads naturally in both.</p>
+      </div>
+    </div>
+    <p class="note">I work in small, visible steps: you see something running
+      early, and you can check it yourself at every stage. If a thing cannot be
+      done well, I will say so rather than bill for it.</p>
+    <a class="btn primary" href="#contact">Tell me what you need</a>
+  </div>
+</section>
+
+<section id="kundli">
+  <div class="wrap">
+    <h2>कुंडली चाहिए?</h2>
+    <p class="sub">जन्मकुंडली, वर्षफल, मिलान और परामर्श — गणना NASA JPL के
+      आँकड़ों से मिलाई गई, और हर बात के साथ उसका कारण।</p>
+    <div class="cols">
+      <div>
+        <h4>मुफ़्त ऐप</h4>
+        <p>पूरी कुंडली, सोलह वर्ग, दशा, पंचांग, मिलान और फलादेश — बिलकुल
+          मुफ़्त, बिना खाते के, बिना इंटरनेट के।</p>
+        <p class="links"><a href="https://pallavsharmaofficial.github.io/KundliSaar/get/">अभी खोलिए</a></p>
+      </div>
+      <div>
+        <h4>विस्तृत रिपोर्ट · ₹299</h4>
+        <p>25 से 40 पन्नों की PDF, हिंदी और अंग्रेज़ी दोनों में: षड्बल,
+          अष्टकवर्ग, सोलह वर्ग कुंडलियाँ, दशा, योग-दोष और उपाय सहित।</p>
+        <p class="links"><a href="#contact">रिपोर्ट बनवाइए</a></p>
+      </div>
+      <div>
+        <h4>पंडित जी से परामर्श</h4>
+        <p>कुंडली पढ़वानी हो, मुहूर्त निकलवाना हो, या सत्यनारायण पूजा, भागवत
+          कथा और राम कथा करवानी हो — सीधे बात कीजिए।</p>
+        <p class="links"><a href="#contact">संपर्क कीजिए</a></p>
+      </div>
+    </div>
+    <p class="note">यह ऐप मृत्यु, बीमारी, गर्भ, परीक्षा, मुक़दमे और निवेश पर
+      भविष्यवाणी नहीं करता। जो शास्त्र कहता है, वही — कारण के साथ, और डराकर
+      उपाय बेचे बिना।</p>
+  </div>
+</section>
+
+<section id="contact" class="alt">
+  <div class="wrap narrow">
+    <h2>Get in touch · संपर्क</h2>
+    <p class="sub">Whatever is easiest for you. I answer the same day.</p>
+
+    <div class="reach">
+      <a class="reach-item wa" id="waLink" href="#">
+        <b>WhatsApp</b><span>सबसे तेज़ · fastest</span>
+      </a>
+      <a class="reach-item" href="mailto:pallav@ezymind.in">
+        <b>Email</b><span>pallav@ezymind.in</span>
+      </a>
+      <a class="reach-item" href="https://github.com/pallavsharmaofficial">
+        <b>GitHub</b><span>pallavsharmaofficial</span>
+      </a>
+    </div>
+
+    <form id="enquiry" class="form" action="https://api.web3forms.com/submit" method="POST" enctype="multipart/form-data">
+      <!-- Web3Forms: free, no backend. Put the access key here; it is meant
+           to be public and only lets a form post to your own inbox. -->
+      <input type="hidden" name="access_key" value="WEB3FORMS_ACCESS_KEY">
+      <input type="hidden" name="subject" value="New enquiry from your portfolio">
+      <input type="hidden" name="from_name" value="pallavsharmaofficial.github.io">
+      <!-- Bots fill this in; people never see it. -->
+      <input type="checkbox" name="botcheck" class="hp" tabindex="-1" autocomplete="off">
+
+      <div class="row">
+        <label>Name · नाम
+          <input type="text" name="name" required autocomplete="name">
+        </label>
+        <label>Phone or email · फ़ोन या ईमेल
+          <input type="text" name="contact" required>
+        </label>
+      </div>
+
+      <label>What do you need? · आपको क्या चाहिए?
+        <select name="need">
+          <option>An app built</option>
+          <option>A kundli report (₹299)</option>
+          <option>A consultation with the pandit</option>
+          <option>Something else</option>
+        </select>
+      </label>
+
+      <label>Tell me about it · विस्तार से बताइए
+        <textarea name="message" rows="5" required
+          placeholder="For a kundli: name, date of birth, exact time and town.&#10;कुंडली के लिए: नाम, जन्म तिथि, सही समय और शहर।"></textarea>
+      </label>
+
+      <label class="file">Attach a file (optional) · फ़ाइल लगाइए
+        <input type="file" name="attachment">
+        <span class="hint">A document, a photograph of an old janampatri, anything useful.</span>
+      </label>
+
+      <button class="btn primary" type="submit">Send · भेजिए</button>
+      <p class="status" id="formStatus" role="status"></p>
+    </form>
+
+    <div class="pay">
+      <h4>Paying for a report?</h4>
+      <div class="pay-row">
+        <img src="assets/upi-qr.png" alt="UPI QR code" class="qr">
+        <div>
+          <p>UPI · <code>pallavsharma353-1@okaxis</code></p>
+          <p class="hint">₹299 for the full report. Send the payment
+            screenshot with your birth details and it comes back the same day.
+            Comparable reports sell for ₹799 to ₹1,599 elsewhere.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>Built by Pallav Sharma. The apps above are open source —
+      <a href="https://github.com/pallavsharmaofficial">read the code</a>.</p>
+  </div>
+</footer>
+
+<script src="main.js"></script>
+</body>
+</html>
