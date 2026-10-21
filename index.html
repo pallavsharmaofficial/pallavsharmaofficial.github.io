@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pallav Sharma — apps that work offline, in Hindi and English</title>
-<meta name="description" content="I build Flutter apps that run entirely on the phone: no server, no account, nothing uploaded. Four on the Play Store, including a Vedic astrology engine fitted to NASA JPL data.">
+<meta name="description" content="I build Flutter apps that run entirely on the phone: no server, no account, nothing uploaded. Four of them, including a Vedic astrology engine fitted to NASA JPL data.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=Mukta:wght@400;600&display=swap" rel="stylesheet">
@@ -19,12 +19,23 @@
 </head>
 <body>
 
+<nav class="topbar"><div class="wrap">
+  <a href="#" class="back">Pallav Sharma</a>
+  <span class="navlinks">
+    <a href="#skills">Skills</a>
+    <a href="#work">Work</a>
+    <a href="#qa">QA</a>
+    <a href="#kundli">कुंडली</a>
+  </span>
+  <a href="proposal.html" class="btn small primary">Start a project</a>
+</div></nav>
+
 <header class="hero">
   <div class="wrap">
     <p class="kicker">Pallav Sharma · पल्लव शर्मा</p>
     <h1>I build apps that keep working<br><em>when the internet stops.</em></h1>
     <p class="lede">
-      Four apps on the Play Store, all of them Flutter, all of them bilingual,
+      Four apps built, all of them Flutter, all of them bilingual,
       all of them running entirely on the phone — no server, no account,
       nothing uploaded. One of them computes the planets from a solar-system
       model I fitted to NASA JPL's own data, accurate to about an arcsecond,
@@ -39,10 +50,111 @@
 
 <section class="proof">
   <div class="wrap grid-4">
-    <div><b>4</b><span>apps shipped</span></div>
-    <div><b>450+</b><span>tests on one engine</span></div>
+    <div><b>4</b><span>apps built</span></div>
+    <div><b>450+</b><span>tests on one app</span></div>
     <div><b>1″</b><span>ephemeris accuracy</span></div>
     <div><b>2</b><span>languages, everywhere</span></div>
+  </div>
+</section>
+
+<section id="skills" class="alt">
+  <div class="wrap">
+    <h2>What I can do, and how I know</h2>
+    <p class="sub">Every line below points at something on this page you can
+      open and check. I have left out anything I could not show you.</p>
+
+    <div class="skills">
+      <div class="skill">
+        <h4>Flutter &amp; Dart</h4>
+        <p class="lvl">Five apps, one codebase each, Android · iOS · web</p>
+        <p>Bloc and cubits, go_router, deferred loading, golden tests,
+          localisation, platform channels where the plugin did not exist.
+          Shipped to Google Play with signing and release tracks.</p>
+        <p class="ev">KundliSaar · SurSaar · Vyuhbhed · Saath</p>
+      </div>
+
+      <div class="skill">
+        <h4>Numerical &amp; scientific work</h4>
+        <p class="lvl">An ephemeris accurate to about an arcsecond</p>
+        <p>Fitted a Poisson series to NASA JPL's DE440s with matching pursuit
+          in Python, then emitted it as Dart tables that evaluate in
+          milliseconds on a phone. Precession, nutation, light-time,
+          aberration, sidereal frames, rise and set.</p>
+        <p class="ev">KundliSaar's engine · verified against skyfield</p>
+      </div>
+
+      <div class="skill">
+        <h4>On-device signal processing</h4>
+        <p class="lvl">Pitch and chord detection, live, offline</p>
+        <p>Audio from the microphone analysed on the handset in real time,
+          with no server in the path — because the alternative is streaming
+          somebody's room to a datacentre.</p>
+        <p class="ev">SurSaar</p>
+      </div>
+
+      <div class="skill">
+        <h4>Python &amp; automation</h4>
+        <p class="lvl">The boring forty steps, done by a machine</p>
+        <p>Google Play Developer API v3: store listings in every locale,
+          graphics, screenshots, release tracks, all from the command line.
+          Plus the data pipelines behind the astronomy work.</p>
+        <p class="ev">Launchkit</p>
+      </div>
+
+      <div class="skill wide">
+        <h4>Testing &amp; QA — manual and automated</h4>
+        <p class="lvl">450+ tests on one app · test plans · release verification</p>
+        <p>Where the maths is the product, tests are the only thing standing
+          between you and a confident wrong answer. Results are checked
+          against <em>independent</em> sources rather than against themselves,
+          and every bug found gets pinned by a test so it cannot come back.</p>
+        <p>I can take this on as its own piece of work, separate from
+          building: a written test plan, automated suites that run on every
+          push, structured manual passes where automation is the wrong tool,
+          and reports you can actually read and act on — what was tested,
+          what passed, what failed, and how bad each failure is.</p>
+        <p class="ev">KundliSaar · cross-checked against published almanacs
+          and NASA JPL data</p>
+      </div>
+
+      <div class="skill">
+        <h4>Offline-first &amp; privacy</h4>
+        <p class="lvl">No server, no account, nothing uploaded</p>
+        <p>Apps that keep working with the radio off and hold private data on
+          the handset. Harder than it sounds: it means everything, including
+          the heavy computation, has to fit and run locally.</p>
+        <p class="ev">All five apps</p>
+      </div>
+
+      <div class="skill">
+        <h4>CI/CD &amp; release</h4>
+        <p class="lvl">Push to main, it is live</p>
+        <p>GitHub Actions that analyse, test, build the web app, deploy the
+          site and push a Play release. Plus the unglamorous parts: signing
+          keys, store policy, content ratings, closed testing.</p>
+        <p class="ev">Every repository here</p>
+      </div>
+
+      <div class="skill">
+        <h4>Hindi &amp; English, as equals</h4>
+        <p class="lvl">Not a translation layer bolted on at the end</p>
+        <p>Every app reads naturally in both, including the hard parts:
+          Devanagari typography, number and date formats, and domain
+          vocabulary that has no clean English equivalent.</p>
+        <p class="ev">All five apps</p>
+      </div>
+    </div>
+
+    <h3 class="tools-h">Tools I reach for</h3>
+    <p class="tools">Dart · Flutter · Python · JavaScript · HTML &amp; CSS ·
+      Git &amp; GitHub Actions · SQLite · REST APIs · Google Play Console
+      &amp; Developer API · Firebase · NumPy &amp; SciPy · skyfield ·
+      Linux &amp; shell · Figma</p>
+
+    <p class="note">If something you need is not on this list, say so and I
+      will tell you honestly whether I can pick it up quickly or whether you
+      want somebody else. That answer costs you one message and saves you a
+      month.</p>
   </div>
 </section>
 
@@ -111,6 +223,60 @@
         <span class="more">See it →</span>
       </a>
     </div>
+  </div>
+</section>
+
+<section id="qa">
+  <div class="wrap">
+    <h2>Testing and QA, as a service on its own</h2>
+    <p class="sub">Plenty of teams can build. Far fewer can tell you, with
+      evidence, whether what they built actually works. I can do this for
+      software I did not write.</p>
+
+    <div class="cols">
+      <div>
+        <h4>A test plan first</h4>
+        <p>Written down before anything is run: what matters, what breaks the
+          release, what we are deliberately not testing and why. You approve
+          it, so nobody argues about scope afterwards.</p>
+      </div>
+      <div>
+        <h4>Automation where it pays</h4>
+        <p>Suites that run on every push and block a bad merge: unit,
+          widget and integration, API contracts, and golden tests for
+          anything visual. Automation is for what runs a hundred times.</p>
+      </div>
+      <div>
+        <h4>Manual where it is the right tool</h4>
+        <p>Exploratory passes, real devices, bad networks, the cheap Android
+          phone your actual users have. Regional language input, right-to-left
+          text, accessibility. A script will not find what a person finds.</p>
+      </div>
+      <div>
+        <h4>Reports you can act on</h4>
+        <p>Not a wall of green ticks. What was covered, what was not, every
+          defect with the exact steps to reproduce it, severity, and a plain
+          recommendation on whether to ship.</p>
+      </div>
+      <div>
+        <h4>Release verification</h4>
+        <p>The pass before a build goes out: smoke on the release candidate,
+          upgrade path from the version already installed, store compliance,
+          permissions and privacy declarations, rollback plan.</p>
+      </div>
+      <div>
+        <h4>Setting it up to last</h4>
+        <p>If you would rather own this yourself, I will set up the harness,
+          write the first suites and the conventions, and hand it to your
+          team working.</p>
+      </div>
+    </div>
+
+    <p class="note">The honest version of this: automated tests catch
+      regressions, not design mistakes, and a hundred percent coverage number
+      tells you almost nothing. I will tell you what the testing does and does
+      not buy you, rather than selling you a number.</p>
+    <a class="btn primary" href="proposal.html">Talk about QA work</a>
   </div>
 </section>
 
