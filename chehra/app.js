@@ -8,6 +8,7 @@
 //   -> centroid, size and rotation in mm/deg -> live guidance.
 import { FaceLandmarker, FilesetResolver } from './vendor/vision_bundle.mjs';
 import { greyPyramid, corners, lk, similarity } from './track.js';
+import { createGuide, cue, unlockAudio } from './audio.js';
 
 const $ = s => document.querySelector(s);
 const cv = $('#view'), ctx = cv.getContext('2d');
@@ -17,7 +18,7 @@ const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { wi
 
 // ---------- config ----------
 const KEY = 'chehra.dusq.v2';   // v2: defaults measured from a correct placement; v1 targets were for the old detector
-const DEF = { down: 0.33, back: 0.19, angle: 10, size: 34, tol: 4, tolDeg: 15, voice: true, mesh: false, tone: 'dark', faceMM: 140 };
+const DEF = { down: 0.33, back: 0.19, angle: 10, size: 34, tol: 4, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -362,16 +363,16 @@ function guidance(h, d) {
   const vert = Math.abs(d.dv) > tol * 0.7 && `${d.dv > 0 ? 'Up' : 'Down'} ${Math.round(Math.abs(d.dv))}`;
   const horz = Math.abs(d.du) > tol * 0.7 && `${d.du > 0 ? 'Forward' : 'Back'} ${Math.round(Math.abs(d.du))}`;
   (Math.abs(d.dv) >= Math.abs(d.du) ? [vert, horz] : [horz, vert]).forEach(x => x && sayParts.push(x));
-  let msg = parts.length ? 'Move ' + parts.join(' and ') : '';
+  let msg = parts.length ? 'Move ' + parts.join(' and ') : '', turn = null;
   if (!rotOk) {
     // turn the head-frame rotation into a clockwise/anticlockwise instruction on screen
     const ds = [h.down[0], h.down[1]], bs = [h.back[0], h.back[1]];
     let cr = bs[0] * ds[1] - bs[1] * ds[0]; if (S.facing === 'user') cr = -cr;
-    const cw = (-rotErr) * cr > 0;
+    const cw = (-rotErr) * cr > 0; turn = cw ? 'cw' : 'ccw';
     msg += (msg ? ', then ' : '') + `rotate ${Math.abs(rotErr).toFixed(0)}° ${cw ? 'clockwise' : 'anticlockwise'}`;
     if (posOk || sayParts.length < 2) sayParts.push(`Turn ${cw ? 'clockwise' : 'anticlockwise'}`);
   }
-  return { msg, say: sayParts.slice(0, 2).join('. '), cls: d.dist > tol * 3 ? 'bad' : 'warn', ok: false, rotErr };
+  return { msg, turn, posOk, rotOk, say: sayParts.slice(0, 2).join('. '), cls: d.dist > tol * 3 ? 'bad' : 'warn', ok: false, rotErr };
 }
 
 // ---------- drawing ----------
@@ -436,33 +437,26 @@ function drawOverlay(h, d, g, t) {
   }
 }
 
-// ---------- audio ----------
-let actx;
-function beep(f, ms) {
-  try { actx ||= new AudioContext(); const o = actx.createOscillator(), g = actx.createGain();
-    o.frequency.value = f; g.gain.value = 0.06; o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + ms / 1000); } catch {}
+// ---------- audio (tones and phrasing live in audio.js) ----------
+const sound = () => cfg.sound || 'all';
+let voicePick = null;
+function pickVoice() {   // the most natural English voice on the device, Indian English first
+  const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang)); if (!vs.length) return null;
+  const score = v => (/en-IN/i.test(v.lang) ? 3 : /en-GB/i.test(v.lang) ? 2 : 1) + (/natural|neural|enhanced|premium/i.test(v.name) ? 4 : 0) + (/google/i.test(v.name) ? 2 : 0);
+  return vs.sort((x, y) => score(y) - score(x))[0];
 }
-function speak(msg, force) {
-  const native = window.ChehraAndroid;
-  if (!cfg.voice || (!native && !('speechSynthesis' in window))) return;
-  const now = performance.now();
-  if (!force && (msg === S.lastSpeak ? now - S.lastSpeakT < 6000 : now - S.lastSpeakT < 2800)) return;
-  S.lastSpeak = msg; S.lastSpeakT = now;
-  if (native) { native.speak(msg); return; }
-  speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(msg));
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { voicePick = pickVoice(); };
+function voiceOut(msg) {
+  if (window.ChehraAndroid) { window.ChehraAndroid.speak(msg); return; }
+  if (!('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(msg); voicePick ||= pickVoice();
+  if (voicePick) { u.voice = voicePick; u.lang = voicePick.lang; }
+  u.rate = 0.95; u.pitch = 1; u.volume = 0.9; speechSynthesis.speak(u);
 }
-// pitch tells the direction (high = up, low = down, middle = sideways or turn), the rate tells the distance,
-// and the phone in the hand vibrates, so the user can place the device without seeing the screen
-function proximityBeep(d, ok) {
-  if (!d?.found) return;
-  const now = performance.now(), gap = ok ? 150 : clamp(d.dist * 70, 160, 1100);
-  if (now - S.lastBeep < gap) return;
-  S.lastBeep = now;
-  const vertical = Math.abs(d.dv) > cfg.tol * 0.7 && Math.abs(d.dv) >= Math.abs(d.du);
-  if (cfg.voice) beep(ok ? 1320 : vertical ? (d.dv > 0 ? 1050 : 520) : 760, ok ? 50 : 70);
-  if (navigator.vibrate) { if (ok && !S.wasOk) navigator.vibrate([70, 50, 70]); else if (!ok && d.dist < cfg.tol * 3) navigator.vibrate(15); }
-  S.wasOk = ok;
-}
+const guide = createGuide({ mode: sound, say: voiceOut, vibrate: p => navigator.vibrate?.(p) });
+const speak = (msg, force) => guide.say(msg, performance.now(), { force, gap: 5000 });
+const beep = kind => { if (['all', 'tones'].includes(sound())) cue(kind); };
 
 // glanceable cues: coloured screen edge + one huge arrow and number, readable from the corner of the eye
 function glance(h, d, g) {
@@ -484,7 +478,7 @@ function hud(items) { const h = items.map(([k, v]) => `<span class="chip">${k} <
 function toast(m, ms = 2200) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
 function go(step) {
-  S.step = step; S.goodSince = 0; S.wasOk = false; glance(null, null, null);
+  S.step = step; S.goodSince = 0; S.wasOk = false; guide?.reset(); glance(null, null, null);
   const side = S.head?.side;
   $('#camSeg').style.display = step === 'intro' ? '' : 'none';
   $('#shutterRow').style.display = step === 'check' ? 'flex' : 'none';
@@ -599,7 +593,7 @@ function frame(t) {
       S.scanN++; setLive('Hold still…', 'ok');
       $('#ringArc').style.strokeDashoffset = 176 * (1 - S.scanN / SCAN_FRAMES);
       if (S.scanN >= SCAN_FRAMES) {
-        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.emaB = S.emaS = null; S.sd = null; beep(1320, 120); go('guide');
+        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.emaB = S.emaS = null; S.sd = null; beep('done'); go('guide');
       }
     }
     drawOverlay(h, null, null, t); return;
@@ -608,9 +602,10 @@ function frame(t) {
   if (!raw.found && S.base[h.side]) { const alt = detect(h, patch, vw, vh, false); if (alt.found && alt.conf > 0.4) raw = alt; }
   const d = S.det = smoothDet(raw), g = S.g = guidance(h, d);
   drawOverlay(h, d, g, t);
-  setLive(g.msg, g.cls); speak(g.say || g.msg); proximityBeep(d, g.ok); glance(h, d, g);
+  setLive(g.msg, g.cls); glance(h, d, g);
+  guide.update({ found: !!d?.found, ok: g.ok, dist: d?.dist, du: d?.du, dv: d?.dv, rotErr: g.rotErr, turn: g.turn, posOk: g.posOk, tol: cfg.tol });
   if (S.step === 'guide') { // hands-free: on target for 1.5 s moves on by itself
-    if (g.ok) { S.goodSince ||= t; if (t - S.goodSince > 1500) { beep(1560, 160); speak('Perfect. Press it on firmly. Checking the fit.', true); go('check'); return; } }
+    if (g.ok) { S.goodSince ||= t; if (t - S.goodSince > 1500) { beep('done'); speak('Perfect. Press it on firmly. Checking the fit.', true); go('check'); return; } }
     else S.goodSince = 0;
   }
   $('#shutter').classList.toggle('ok', g.ok);
@@ -627,7 +622,7 @@ $('#primary').onclick = async () => {
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API not available — open this page over https.');
       await Promise.all([startCamera(), S.lm ? null : loadModel()]);
-      beep(660, 1); go('scan');
+      unlockAudio(); go('scan');
     } catch (e) {
       const m = { NotAllowedError: 'Camera permission was blocked. Allow the camera for this site (lock icon in the address bar), then try again.',
         NotFoundError: 'No camera found on this device.', NotReadableError: 'The camera is busy in another app. Close it and try again.',
@@ -661,12 +656,14 @@ const sliders = [['sDown', 'down', v => `${(v * 100).toFixed(1)}% fw`], ['sBack'
   ['sAngle', 'angle', v => `${v}°`], ['sSize', 'size', v => `${v} mm`], ['sTol', 'tol', v => `±${v} mm`], ['sTolDeg', 'tolDeg', v => `±${v}°`]];
 function syncSettings() {
   for (const [id, k, fmt] of sliders) { $('#' + id).value = cfg[k]; $('#v' + id.slice(1)).textContent = fmt(cfg[k]); }
-  $('#sVoice').checked = cfg.voice; $('#sMesh').checked = cfg.mesh;
+  $('#sMesh').checked = cfg.mesh;
+  document.querySelectorAll('#soundSeg button').forEach(b => b.classList.toggle('on', b.dataset.s === sound()));
   document.querySelectorAll('#toneSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === cfg.tone));
 }
 for (const [id, k, fmt] of sliders) $('#' + id).oninput = e => { cfg[k] = +e.target.value; $('#v' + id.slice(1)).textContent = fmt(cfg[k]); store.set(cfg); };
 document.querySelectorAll('#toneSeg button').forEach(b => b.onclick = () => { cfg.tone = b.dataset.t; store.set(cfg); S.emaB = S.emaS = null; syncSettings(); });
-$('#sVoice').onchange = e => { cfg.voice = e.target.checked; store.set(cfg); };
+document.querySelectorAll('#soundSeg button').forEach(b => b.onclick = () => { cfg.sound = b.dataset.s; store.set(cfg); syncSettings(); unlockAudio(); });
+document.querySelectorAll('#legend button').forEach(b => b.onclick = () => { unlockAudio(); cue(b.dataset.c); });
 $('#sMesh').onchange = e => { cfg.mesh = e.target.checked; store.set(cfg); };
 $('#setBtn').onclick = () => { syncSettings(); $('#settings').classList.add('open'); };
 $('#closeSet').onclick = () => $('#settings').classList.remove('open');

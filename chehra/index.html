@@ -69,6 +69,7 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
 #bigArrow{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);display:none;place-items:center;pointer-events:none;color:var(--warn);text-shadow:0 2px 12px #000}
 #bigArrow i{font-style:normal;font-size:120px;line-height:1;display:block;transition:transform .15s}#bigArrow b{font-size:34px;font-weight:600}
 #bigArrow.bad{color:var(--bad)}#bigArrow.ok{color:var(--ok)}#bigArrow.ok b{font-size:110px}
+#legend{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}#legend button{background:#ffffff14;border:0;color:#fff;border-radius:10px;padding:8px 4px;font:500 13px inherit;font-family:inherit;cursor:pointer}#legend small{display:block;color:var(--dim);font-size:10px;margin-top:2px}
 #toast{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--card);padding:12px 16px;border-radius:12px;font-size:14px;display:none;text-align:center;max-width:80%}
 </style>
 </head>
@@ -122,7 +123,10 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
     <label>Position tolerance <span id="vTol"></span></label><input type="range" id="sTol" min="1" max="10" step="0.5">
     <label>Rotation tolerance <span id="vTolDeg"></span></label><input type="range" id="sTolDeg" min="3" max="30" step="1">
     <label>Device colour</label><div class="seg" id="toneSeg" style="margin-top:0"><button data-t="dark">Dark</button><button data-t="light">Light</button><button data-t="any">Any</button></div>
-    <label><input type="checkbox" id="sVoice"> Voice and beep guidance (for when you can't see the screen)</label>
+    <label>Guidance sound</label><div class="seg" id="soundSeg" style="margin-top:0"><button data-s="all">Voice + tones</button><button data-s="tones">Tones</button><button data-s="voice">Voice</button><button data-s="off">Off</button></div>
+    <label>Hear the tones</label>
+    <div id="legend"><button data-c="up">↑ Up<small>rising</small></button><button data-c="down">↓ Down<small>falling</small></button><button data-c="forward">→ Ear<small>2 high taps</small></button><button data-c="back">← Away<small>2 low taps</small></button><button data-c="cw">↻ Twist<small>wobble</small></button><button data-c="ok">✓ On target<small>chord</small></button></div>
+    <p style="margin-top:8px">The tone repeats faster as you get closer and goes quiet once the device is in place. The voice speaks only when the advice changes.</p>
     <label><input type="checkbox" id="sMesh"> Show face mesh and detection (debug)</label>
     <button class="btn ghost" id="shareCal">Share calibration link</button>
     <div class="row"><button class="btn ghost" id="resetCfg">Reset</button><button class="btn" id="closeSet">Done</button></div>
