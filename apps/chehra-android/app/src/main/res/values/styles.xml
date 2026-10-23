@@ -1,0 +1,7 @@
+<resources>
+    <style name="Chehra" parent="@android:style/Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0b0b0c</item>
+        <item name="android:statusBarColor">#0b0b0c</item>
+        <item name="android:navigationBarColor">#0b0b0c</item>
+    </style>
+</resources>

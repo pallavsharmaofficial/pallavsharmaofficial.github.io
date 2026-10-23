@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0b0b0c">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -60,6 +61,14 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
 #settings input[type=range]{width:100%}
 #settings .row{display:flex;gap:8px}
 #settings .row .btn{margin-top:14px;padding:11px;font-size:14px}
+#history{max-width:420px;margin:14px auto 0;text-align:left}#history h4{font-size:12px;font-weight:500;color:var(--dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px}
+#history div{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--dim);padding:5px 0;border-bottom:1px solid #fff1}#history b{font-weight:600}
+.privacy{font-size:11px;color:#fff8;margin-top:12px}
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 0 0 transparent;transition:box-shadow .2s}
+#stage[data-state=ok]::after{box-shadow:inset 0 0 0 14px var(--ok)}#stage[data-state=warn]::after{box-shadow:inset 0 0 0 10px var(--warn)}#stage[data-state=bad]::after{box-shadow:inset 0 0 0 10px var(--bad)}
+#bigArrow{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%);display:none;place-items:center;pointer-events:none;color:var(--warn);text-shadow:0 2px 12px #000}
+#bigArrow i{font-style:normal;font-size:120px;line-height:1;display:block;transition:transform .15s}#bigArrow b{font-size:34px;font-weight:600}
+#bigArrow.bad{color:var(--bad)}#bigArrow.ok{color:var(--ok)}#bigArrow.ok b{font-size:110px}
 #toast{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--card);padding:12px 16px;border-radius:12px;font-size:14px;display:none;text-align:center;max-width:80%}
 </style>
 </head>
@@ -87,7 +96,11 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
     </div>
     <button class="btn" id="primary">Start camera</button>
     <button class="btn ghost" id="secondary" style="display:none"></button>
+    <a class="btn ghost" id="getApp" style="display:none;text-decoration:none" href="https://github.com/pallavsharmaofficial/pallavsharmaofficial.github.io/releases/download/chehra-android/chehra.apk">Get the Android app</a>
+    <div id="history"></div>
+    <div class="privacy">Video stays on this device. Nothing is uploaded.</div>
   </div>
+  <div id="bigArrow"><i>➜</i><b></b></div>
   <div id="toast"></div>
   <div id="result">
     <img id="shot" alt="Captured fit check">
@@ -111,6 +124,7 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
     <label>Device colour</label><div class="seg" id="toneSeg" style="margin-top:0"><button data-t="dark">Dark</button><button data-t="light">Light</button><button data-t="any">Any</button></div>
     <label><input type="checkbox" id="sVoice"> Voice and beep guidance (for when you can't see the screen)</label>
     <label><input type="checkbox" id="sMesh"> Show face mesh and detection (debug)</label>
+    <button class="btn ghost" id="shareCal">Share calibration link</button>
     <div class="row"><button class="btn ghost" id="resetCfg">Reset</button><button class="btn" id="closeSet">Done</button></div>
   </aside>
 </div>

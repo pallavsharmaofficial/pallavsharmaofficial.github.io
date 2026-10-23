@@ -1,0 +1,26 @@
+plugins { id 'com.android.application' }
+
+def code = (project.findProperty('versionCode') ?: '1') as int
+
+android {
+    namespace 'com.ezymind.chehra'
+    compileSdk 34
+    defaultConfig {
+        applicationId 'com.ezymind.chehra'
+        minSdk 26
+        targetSdk 34
+        versionCode code
+        versionName "1.0.${code}"
+    }
+    // Test signing so sideloaded builds update in place. Play Store builds use an upload key from secrets.
+    signingConfigs {
+        test {
+            storeFile file('../chehra-test.jks')
+            storePassword 'chehra-test'
+            keyAlias 'chehra'
+            keyPassword 'chehra-test'
+        }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.test } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}

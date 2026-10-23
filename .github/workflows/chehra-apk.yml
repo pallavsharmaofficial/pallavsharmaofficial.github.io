@@ -1,0 +1,44 @@
+name: Chehra Android APK
+
+on:
+  push:
+    branches: [main]
+    paths: ['apps/chehra-android/**', '.github/workflows/chehra-apk.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chehra-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build
+        # The app loads the live site, so web changes ship without a new APK; this only runs when the wrapper changes.
+        working-directory: apps/chehra-android
+        run: gradle assembleRelease --no-daemon -PversionCode=${{ github.run_number }}
+
+      - name: Publish to the chehra-android release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp apps/chehra-android/app/build/outputs/apk/release/app-release.apk chehra.apk
+          gh release delete chehra-android --yes --cleanup-tag || true
+          gh release create chehra-android chehra.apk --target "${{ github.sha }}" \
+            --title "Chehra for Android (build ${{ github.run_number }})" \
+            --notes "Sideload build, test-signed. Open on the phone, allow installing from this source, then launch Chehra."

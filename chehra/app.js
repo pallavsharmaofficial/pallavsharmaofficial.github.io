@@ -16,8 +16,8 @@ const grab = document.createElement('canvas'), gctx = grab.getContext('2d', { wi
 const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { willReadFrequently: true });
 
 // ---------- config ----------
-const KEY = 'chehra.dusq.v1';
-const DEF = { down: 0.29, back: 0.18, angle: 40, size: 30, tol: 3, tolDeg: 10, voice: true, mesh: false, tone: 'dark', faceMM: 140 };
+const KEY = 'chehra.dusq.v2';   // v2: defaults measured from a correct placement; v1 targets were for the old detector
+const DEF = { down: 0.33, back: 0.19, angle: 10, size: 34, tol: 4, tolDeg: 15, voice: true, mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -127,6 +127,7 @@ function samplePatch(h, vw, vh) {
   grab.width = bw; grab.height = bh;
   gctx.drawImage(video, x0, y0, bw, bh, 0, 0, bw, bh);
   const d = gctx.getImageData(0, 0, bw, bh).data, out = new Float32Array(N * N * 3);
+  S.img = { d, x0, y0, bw, bh };
   let inside = 0;
   for (let k = 0; k < N * N; k++) {
     const x = Math.round(pts[k * 2] - x0), y = Math.round(pts[k * 2 + 1] - y0);
@@ -163,8 +164,8 @@ function skinRef(h, vw, vh) {
 // gated by the device tone (a dark device must be darker than skin, which rules out ear edges and glare).
 // The threshold comes from the outer ring only, so a large device cannot raise its own threshold.
 const lum = (a, o) => 0.299 * a[o] + 0.587 * a[o + 1] + 0.114 * a[o + 2];
-function detect(h, cur, vw, vh) {
-  const base = S.base[h.side], skin = skinRef(h, vw, vh) || S.skin;
+function detect(h, cur, vw, vh, useBase = true) {
+  const base = useBase ? S.base[h.side] : null, ek = base ? 'emaB' : 'emaS', skin = skinRef(h, vw, vh) || S.skin;
   const skinL = skin ? 0.299 * skin[0] + 0.587 * skin[1] + 0.114 * skin[2] : 140;
   const diff = new Float32Array(N * N), C = (N - 1) / 2;
   const ringOf = k => Math.hypot((k % N) - C, ((k / N) | 0) - C) / C > 0.72;
@@ -195,13 +196,13 @@ function detect(h, cur, vw, vh) {
       if (v === Infinity) v = 0;
     } else v = skin ? Math.hypot(cur[o] - skin[0], cur[o + 1] - skin[1], cur[o + 2] - skin[2]) : 0;
     const L = lum(cur, o) / g;
-    if (cfg.tone === 'dark' && L > skinL * 0.72) v *= 0.15;
+    if (cfg.tone === 'dark' && L > skinL * (base ? 0.72 : 0.55)) v *= 0.15;
     if (cfg.tone === 'light' && L < skinL * 1.12) v *= 0.15;
     diff[k] = v;
   }
-  if (!S.ema || S.ema.length !== diff.length) S.ema = diff;
-  else for (let k = 0; k < diff.length; k++) S.ema[k] = S.ema[k] * 0.5 + diff[k] * 0.5;
-  const e = S.ema, ring = [];
+  if (!S[ek] || S[ek].length !== diff.length) S[ek] = diff;
+  else for (let k = 0; k < diff.length; k++) S[ek][k] = S[ek][k] * 0.5 + diff[k] * 0.5;
+  const e = S[ek], ring = [];
   for (let k = 0; k < N * N; k++) if (ringOf(k)) ring.push(e[k]);
   ring.sort((a, b) => a - b);
   const rMed = ring[ring.length >> 1], rMad = ring[(ring.length * 0.75) | 0] - rMed;
@@ -214,7 +215,7 @@ function detect(h, cur, vw, vh) {
     m2[j * N + i] = c >= 5;
   }
   const lab = new Int32Array(N * N).fill(-1), q = new Int32Array(N * N);
-  let best = null;
+  const cands = [];
   for (let s0 = 0; s0 < N * N; s0++) {
     if (!m2[s0] || lab[s0] >= 0) continue;
     let qh = 0, qt = 0, n = 0, sx = 0, sy = 0, edge = 0; q[qt++] = s0; lab[s0] = s0;
@@ -229,33 +230,103 @@ function detect(h, cur, vw, vh) {
     }
     if (n < 6) continue;
     const cx = sx / n, cy = sy / n, rc = Math.hypot(cx - C, cy - C) / C;
-    if (rc > 0.8 || edge / n > 0.12) continue;     // hair and collars run off the patch edge
-    const score = n * (1 - 0.6 * rc);
-    if (!best || score > best.score) best = { n, cx, cy, cells, score };
+    if (rc > 0.68) continue;               // the device is looked for within ~25 mm of the target
+    cands.push({ n, cx, cy, cells, score: n * (1 - 0.5 * rc) * (1 - Math.min(0.8, edge / n * 3)) });
   }
   const cellPx = (2 * HALF * h.W) / (N - 1), cellMM = cellPx * S.mmPx, expected = (cfg.size / cellMM) ** 2;
-  if (!best || best.n < expected * 0.18) return { found: false, mask: m2, thr };
-  // mean-shift a device-sized window onto the densest mass, so beard or hair touching the device is cut away
   const side = cfg.size / cellMM, win = side * 0.8;
-  let mx = S.sd?.found ? S.sd.cx : best.cx, my = S.sd?.found ? S.sd.cy : best.cy, cells = best.cells;
-  if (Math.hypot(mx - best.cx, my - best.cy) > side * 1.5) { mx = best.cx; my = best.cy; }
-  for (let it = 0; it < 8; it++) {
-    let sx = 0, sy = 0, n = 0;
-    for (const k of best.cells) { const i = k % N, j = (k / N) | 0; if ((i - mx) ** 2 + (j - my) ** 2 <= win * win) { sx += i; sy += j; n++; } }
-    if (!n) break;
-    const nx = sx / n, ny = sy / n, moved = Math.hypot(nx - mx, ny - my); mx = nx; my = ny; if (moved < 0.05) break;
+  cands.sort((x, y) => y.score - x.score);
+  let reject = null;
+  for (const cand of cands.slice(0, 3)) {
+    if (cand.n < expected * 0.15) continue;
+    // mean-shift a device-sized window onto the densest mass, so beard or hair touching the device is cut away
+    let mx = cand.cx, my = cand.cy;
+    if (S.sd?.found && Math.hypot(S.sd.cx - cand.cx, S.sd.cy - cand.cy) < side * 1.5) { mx = S.sd.cx; my = S.sd.cy; }
+    for (let it = 0; it < 8; it++) {
+      let sx = 0, sy = 0, n = 0;
+      for (const k of cand.cells) { const i = k % N, j = (k / N) | 0; if ((i - mx) ** 2 + (j - my) ** 2 <= win * win) { sx += i; sy += j; n++; } }
+      if (!n) break;
+      const nx = sx / n, ny = sy / n, moved = Math.hypot(nx - mx, ny - my); mx = nx; my = ny; if (moved < 0.05) break;
+    }
+    const cells = cand.cells.filter(k => ((k % N) - mx) ** 2 + (((k / N) | 0) - my) ** 2 <= win * win);
+    if (cells.length < expected * 0.15) continue;
+    let s4 = 0, c4 = 0;
+    for (const k of cells) {
+      const du = (k % N) - mx, dv = ((k / N) | 0) - my, r2 = du * du + dv * dv, th = Math.atan2(dv, du); // from back toward down, as squarePath rotates
+      s4 += r2 * r2 * Math.sin(4 * th); c4 += r2 * r2 * Math.cos(4 * th);
+    }
+    const rot0 = S.sd?.found ? S.sd.rot : wrap90(Math.atan2(s4, c4) / 4 * DEG - 45);
+    const fit = fitDevice(h, (mx - C) * cellPx, (my - C) * cellPx, rot0, g, skinL, skin);
+    if (!fit.ok) { reject = reject || fit; continue; }
+    return { found: true, mask: m2, thr, fit, du: fit.u * S.mmPx, dv: fit.v * S.mmPx, rot: fit.rot, sizeMM: fit.size,
+      cx: C + fit.u / cellPx, cy: C + fit.v / cellPx, cellPx, conf: fit.conf };
   }
-  if (best.n > expected * 1.4) cells = best.cells.filter(k => ((k % N) - mx) ** 2 + (((k / N) | 0) - my) ** 2 <= win * win);
-  if (cells.length < expected * 0.18) return { found: false, mask: m2, thr };
-  best = { ...best, cells, n: cells.length, cx: mx, cy: my };
-  let s4 = 0, c4 = 0, rmax = 0;
-  for (const k of best.cells) {
-    const du = (k % N) - best.cx, dv = ((k / N) | 0) - best.cy, r2 = du * du + dv * dv, th = Math.atan2(dv, du); // from back toward down, as squarePath rotates
-    s4 += r2 * r2 * Math.sin(4 * th); c4 += r2 * r2 * Math.cos(4 * th); rmax = Math.max(rmax, r2);
+  return { found: false, mask: m2, thr, fit: reject };
+}
+
+// ---------- device verification: rotated rounded-square template at full camera resolution ----------
+// The Dusq device is a dark, smooth rounded square with a bright rim. Hair and beard are dark too, but textured,
+// rimless and dark on at least one side, so they fail this fit. The fit also refines centre, rotation and size.
+const RGB = [0, 0, 0];
+function lumAt(x, y) {   // 2x2 mean; also leaves the colour in RGB
+  const I = S.img; if (!I) return -1;
+  const xi = Math.round(x - I.x0), yi = Math.round(y - I.y0);
+  if (xi < 0 || yi < 0 || xi >= I.bw - 1 || yi >= I.bh - 1) return -1;
+  let r = 0, gg = 0, b = 0;
+  for (let dy = 0; dy <= 1; dy++) for (let dx = 0; dx <= 1; dx++) { const o = ((yi + dy) * I.bw + xi + dx) * 4; r += I.d[o]; gg += I.d[o + 1]; b += I.d[o + 2]; }
+  RGB[0] = r / 4; RGB[1] = gg / 4; RGB[2] = b / 4;
+  return 0.299 * RGB[0] + 0.587 * RGB[1] + 0.114 * RGB[2];
+}
+function fitDevice(h, u0, v0, rotDeg, g, skinL, skin) {
+  const mm = 1 / S.mmPx;   // axis units per millimetre
+  const at = (cu, cv, cs, sn, a, b) => lumAt(h.T[0] + h.back[0] * (cu + a * cs - b * sn) + h.down[0] * (cv + a * sn + b * cs),
+    h.T[1] + h.back[1] * (cu + a * cs - b * sn) + h.down[1] * (cv + a * sn + b * cs)) / g;
+  const evalAt = (cu, cv, r, s) => {
+    const cs = Math.cos(r / DEG), sn = Math.sin(r / DEG), hs = s / 2 * mm, ins = [];
+    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) { const L = at(cu, cv, cs, sn, i / 3 * 0.62 * hs, j / 3 * 0.62 * hs); if (L < 0) return null; ins.push(L); }
+    ins.sort((x, y) => x - y);
+    const body = ins.slice(0, (ins.length * 0.8) | 0), Li = body[body.length >> 1];   // brightest 20% is the logo
+    let tex = 0; for (const L of body) tex += Math.abs(L - Li); tex /= body.length;
+    const sides = []; let skinSides = 0;
+    for (let k = 0; k < 4; k++) {
+      let sum = 0, n = 0, cr = 0, cg = 0, cb = 0;
+      for (let t = -3; t <= 3; t++) for (const off of [1.0, 2.2]) {
+        const o = hs + off * mm, w = t / 3 * 0.6 * hs;
+        const [a, b] = k === 0 ? [o, w] : k === 1 ? [-o, w] : k === 2 ? [w, o] : [w, -o];
+        const L = at(cu, cv, cs, sn, a, b); if (L < 0) return null; sum += L; n++; cr += RGB[0]; cg += RGB[1]; cb += RGB[2];
+      }
+      sides.push(sum / n - Li);
+      // is this side skin? compare chromaticity, so light and shadow on the skin both count
+      if (skin) { const t = cr + cg + cb || 1, ts = skin[0] + skin[1] + skin[2] || 1;
+        if (Math.hypot(cr / t - skin[0] / ts, cg / t - skin[1] / ts) < 0.035 && (cr / n) / g > skin[0] * 0.55) skinSides++; }
+    }
+    sides.sort((x, y) => y - x);
+    const ctr = (sides[0] + sides[1] + sides[2]) / 3;
+    return { Li, tex, s3: sides[2], s4: sides[3], ctr, skinSides, J: sides[2] + 0.5 * sides[3] + 0.3 * ctr - 2 * tex + 6 * skinSides };
+  };
+  let p = { u: u0, v: v0, rot: rotDeg, size: cfg.size }, best = evalAt(p.u, p.v, p.rot, p.size);
+  if (!best) return { ok: false, why: 'edge' };
+  // coordinate search, steps halve each round
+  let st = { u: 2 * mm, v: 2 * mm, rot: 8, size: 3 };
+  for (let round = 0; round < 4; round++) {
+    let improved = true, guard = 0;
+    while (improved && guard++ < 6) {
+      improved = false;
+      for (const k of ['u', 'v', 'rot', 'size']) for (const sgn of [1, -1]) {
+        const q = { ...p, [k]: p[k] + sgn * st[k] };
+        if (q.size < cfg.size * 0.8 || q.size > cfg.size * 1.2 || Math.hypot(q.u - u0, q.v - v0) > cfg.size * 0.45 * mm) continue;
+        const e = evalAt(q.u, q.v, q.rot, q.size);
+        if (e && e.J > best.J) { best = e; p = q; improved = true; }
+      }
+    }
+    for (const k in st) st[k] /= 2;
   }
-  const fill = best.n / (Math.PI * rmax || 1);
-  return { found: true, mask: m2, thr, du: (best.cx - C) * cellMM, dv: (best.cy - C) * cellMM, rot: wrap90(Math.atan2(s4, c4) / 4 * DEG - 45),
-    sizeMM: Math.sqrt(best.n) * cellMM, fill, cx: best.cx, cy: best.cy, cellPx, conf: clamp((best.n / expected) * fill * 1.4, 0, 1) };
+  const texR = best.tex / Math.max(1, best.ctr);
+  const onSkin = !skin || best.skinSides >= 2, near = Math.hypot(p.u, p.v) * S.mmPx <= 24;
+  const ok = best.s3 > 18 && best.Li < skinL * 0.62 && texR < 0.28 && onSkin && near;
+  const conf = clamp((best.s3 - 12) / 40, 0, 1) * clamp(1 - texR / 0.4, 0, 1) * clamp(0.6 + best.s4 / 50, 0, 1);
+  return { ok, conf, u: p.u, v: p.v, rot: wrap90(p.rot), size: p.size, s3: best.s3, s4: best.s4, texR, Li: best.Li, skinSides: best.skinSides,
+    why: ok ? '' : !near ? 'too far from target' : !onSkin ? 'not on skin' : best.Li >= skinL * 0.62 ? 'not dark' : texR >= 0.28 ? 'textured (hair?)' : 'no clear edge' };
 }
 
 // temporal smoothing + hysteresis so the readout does not flicker
@@ -275,7 +346,7 @@ function smoothDet(d) {
 
 // ---------- guidance text ----------
 function guidance(h, d) {
-  if (!d?.found) return { msg: 'Device not seen yet. Place it on the outline.', cls: 'warn', ok: false };
+  if (!d?.found) return { msg: 'Device not seen yet. Place it on the outline.', say: 'Device not seen', cls: 'warn', ok: false };
   const parts = [];
   const tol = cfg.tol;
   if (Math.abs(d.dv) > tol * 0.7) parts.push(`${Math.abs(d.dv).toFixed(0)} mm ${d.dv > 0 ? 'up' : 'down'}`);
@@ -285,7 +356,12 @@ function guidance(h, d) {
   if (Math.abs(rotErr) > 38 && S.rotSign && Math.sign(rotErr) !== S.rotSign) rotErr += S.rotSign * 90;
   S.rotSign = Math.abs(rotErr) > 3 ? Math.sign(rotErr) : 0;
   const posOk = d.dist <= tol, rotOk = Math.abs(rotErr) <= cfg.tolDeg;
-  if (posOk && rotOk) return { msg: `Perfect — ${d.dist.toFixed(1)} mm off. Hold still.`, cls: 'ok', ok: true, rotErr };
+  if (posOk && rotOk) return { msg: `Perfect — ${d.dist.toFixed(1)} mm off. Hold still.`, say: 'Perfect. Hold.', cls: 'ok', ok: true, rotErr };
+  // short spoken form, biggest correction first, for when the screen cannot be seen
+  const sayParts = [];
+  const vert = Math.abs(d.dv) > tol * 0.7 && `${d.dv > 0 ? 'Up' : 'Down'} ${Math.round(Math.abs(d.dv))}`;
+  const horz = Math.abs(d.du) > tol * 0.7 && `${d.du > 0 ? 'Forward' : 'Back'} ${Math.round(Math.abs(d.du))}`;
+  (Math.abs(d.dv) >= Math.abs(d.du) ? [vert, horz] : [horz, vert]).forEach(x => x && sayParts.push(x));
   let msg = parts.length ? 'Move ' + parts.join(' and ') : '';
   if (!rotOk) {
     // turn the head-frame rotation into a clockwise/anticlockwise instruction on screen
@@ -293,8 +369,9 @@ function guidance(h, d) {
     let cr = bs[0] * ds[1] - bs[1] * ds[0]; if (S.facing === 'user') cr = -cr;
     const cw = (-rotErr) * cr > 0;
     msg += (msg ? ', then ' : '') + `rotate ${Math.abs(rotErr).toFixed(0)}° ${cw ? 'clockwise' : 'anticlockwise'}`;
+    if (posOk || sayParts.length < 2) sayParts.push(`Turn ${cw ? 'clockwise' : 'anticlockwise'}`);
   }
-  return { msg, cls: d.dist > tol * 3 ? 'bad' : 'warn', ok: false, rotErr };
+  return { msg, say: sayParts.slice(0, 2).join('. '), cls: d.dist > tol * 3 ? 'bad' : 'warn', ok: false, rotErr };
 }
 
 // ---------- drawing ----------
@@ -340,7 +417,7 @@ function drawOverlay(h, d, g, t) {
   const pulse = 0.5 + 0.5 * Math.sin(t / 300);
   // target outline
   squarePath(h, 0, 0, sizePx, cfg.angle);
-  ctx.fillStyle = g?.ok ? 'rgba(61,220,132,.35)' : `rgba(236,214,196,${0.35 + 0.2 * pulse})`; ctx.fill();
+  if (!d?.found) { ctx.fillStyle = `rgba(236,214,196,${0.12 + 0.1 * pulse})`; ctx.fill(); }
   ctx.setLineDash([6 * lw, 4 * lw]); ctx.lineWidth = lw; ctx.strokeStyle = g?.ok ? '#3ddc84' : '#fff'; ctx.stroke(); ctx.setLineDash([]);
   ctx.beginPath(); ctx.arc(h.T[0], h.T[1], lw * 1.6, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
   if (d?.found && S.step !== 'scan') {
@@ -366,16 +443,38 @@ function beep(f, ms) {
     o.frequency.value = f; g.gain.value = 0.06; o.connect(g).connect(actx.destination); o.start(); o.stop(actx.currentTime + ms / 1000); } catch {}
 }
 function speak(msg, force) {
-  if (!cfg.voice || !('speechSynthesis' in window)) return;
+  const native = window.ChehraAndroid;
+  if (!cfg.voice || (!native && !('speechSynthesis' in window))) return;
   const now = performance.now();
   if (!force && (msg === S.lastSpeak ? now - S.lastSpeakT < 6000 : now - S.lastSpeakT < 2800)) return;
-  S.lastSpeak = msg; S.lastSpeakT = now; speechSynthesis.cancel();
-  speechSynthesis.speak(new SpeechSynthesisUtterance(msg));
+  S.lastSpeak = msg; S.lastSpeakT = now;
+  if (native) { native.speak(msg); return; }
+  speechSynthesis.cancel(); speechSynthesis.speak(new SpeechSynthesisUtterance(msg));
 }
+// pitch tells the direction (high = up, low = down, middle = sideways or turn), the rate tells the distance,
+// and the phone in the hand vibrates, so the user can place the device without seeing the screen
 function proximityBeep(d, ok) {
-  if (!cfg.voice || !d?.found) return;
-  const now = performance.now(), gap = ok ? 140 : clamp(d.dist * 60, 180, 1200);
-  if (now - S.lastBeep > gap) { S.lastBeep = now; beep(ok ? 1320 : 880, 60); }
+  if (!d?.found) return;
+  const now = performance.now(), gap = ok ? 150 : clamp(d.dist * 70, 160, 1100);
+  if (now - S.lastBeep < gap) return;
+  S.lastBeep = now;
+  const vertical = Math.abs(d.dv) > cfg.tol * 0.7 && Math.abs(d.dv) >= Math.abs(d.du);
+  if (cfg.voice) beep(ok ? 1320 : vertical ? (d.dv > 0 ? 1050 : 520) : 760, ok ? 50 : 70);
+  if (navigator.vibrate) { if (ok && !S.wasOk) navigator.vibrate([70, 50, 70]); else if (!ok && d.dist < cfg.tol * 3) navigator.vibrate(15); }
+  S.wasOk = ok;
+}
+
+// glanceable cues: coloured screen edge + one huge arrow and number, readable from the corner of the eye
+function glance(h, d, g) {
+  const stage = $('#stage'), arrow = $('#bigArrow');
+  stage.dataset.state = !d?.found ? 'none' : g.ok ? 'ok' : g.cls;
+  if (!d?.found || g.ok || !['guide', 'check'].includes(S.step)) { arrow.style.display = g?.ok ? 'grid' : 'none'; arrow.className = g?.ok ? 'ok' : ''; arrow.querySelector('b').textContent = g?.ok ? '✓' : ''; arrow.querySelector('i').style.display = g?.ok ? 'none' : ''; return; }
+  const c = (N - 1) / 2, cu = (d.cx - c) * d.cellPx, cv_ = (d.cy - c) * d.cellPx;
+  let dx = -(h.back[0] * cu + h.down[0] * cv_), dy = -(h.back[1] * cu + h.down[1] * cv_); if (S.facing === 'user') dx = -dx;
+  const posOk = d.dist <= cfg.tol;
+  arrow.style.display = 'grid'; arrow.className = g.cls;
+  arrow.querySelector('i').style.display = posOk ? 'none' : ''; arrow.querySelector('i').style.transform = `rotate(${Math.atan2(dy, dx) * DEG}deg)`;
+  arrow.querySelector('b').textContent = posOk ? '⟳' : `${Math.round(d.dist)} mm`;
 }
 
 // ---------- UI ----------
@@ -385,7 +484,7 @@ function hud(items) { const h = items.map(([k, v]) => `<span class="chip">${k} <
 function toast(m, ms = 2200) { const t = $('#toast'); t.textContent = m; t.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = 'none', ms); }
 
 function go(step) {
-  S.step = step; S.goodSince = 0;
+  S.step = step; S.goodSince = 0; S.wasOk = false; glance(null, null, null);
   const side = S.head?.side;
   $('#camSeg').style.display = step === 'intro' ? '' : 'none';
   $('#shutterRow').style.display = step === 'check' ? 'flex' : 'none';
@@ -394,9 +493,11 @@ function go(step) {
   $('#result').style.display = step === 'result' ? 'flex' : 'none';
   ui.secondary.style.display = 'none'; ui.primary.style.display = '';
   $('#hdr').textContent = step === 'intro' ? 'Chehra' : 'Placement guide / Fit check';
-  if (step === 'intro') { ui.title.textContent = 'Chehra · Dusq placement'; ui.sub.textContent = 'We find the spot behind your ear lobe and guide the device there, live.'; ui.primary.textContent = 'Start camera'; }
+  $('#history').style.display = step === 'intro' ? '' : 'none'; if (step === 'intro') showHistory();
+  $('#getApp').style.display = step === 'intro' && /Android/i.test(navigator.userAgent) && !window.ChehraAndroid ? '' : 'none';
+  if (step === 'intro') { ui.title.textContent = 'Chehra · Dusq placement'; ui.sub.textContent = 'We find the spot behind your ear lobe and guide the device there, live. Turn the sound up: once you turn your head you will hear and feel where to move.'; ui.primary.textContent = 'Start camera'; }
   if (step === 'scan') {
-    S.scanAcc = null; S.scanN = 0;
+    S.scanAcc = null; S.scanN = 0; S.scanDev = 0;
     ui.title.textContent = 'Show us the spot'; ui.sub.textContent = 'Face the camera, then slowly turn your head to show the side of your neck. Device off for this scan.';
     ui.primary.style.display = 'none'; ui.secondary.style.display = ''; ui.secondary.textContent = 'Device already on? Skip scan';
     speak('Turn your head to show the side of your neck, behind the ear.', true);
@@ -430,8 +531,26 @@ function capture(h, d, g) {
     ['Detection confidence', d?.found ? `${Math.round(d.conf * 100)}%` : '—'],
     ['Head turn', h ? `${Math.abs(h.yaw).toFixed(0)}°` : '—'], ['Advice', g?.msg || 'Show the side of your neck']];
   $('#rows').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+  const hist = loadHist(); hist.unshift({ t: Date.now(), ok: !!ok, found: !!d?.found, dist: d?.found ? +d.dist.toFixed(1) : null, rot: d?.found ? Math.round(Math.abs(g.rotErr)) : null, side: h?.side });
+  try { localStorage.setItem(HKEY, JSON.stringify(hist.slice(0, 30))); } catch {}
   speak(ok ? 'Placed correctly.' : g?.msg || 'Device not detected.', true);
   go('result');
+}
+
+const HKEY = 'chehra.dusq.history';
+const loadHist = () => { try { return JSON.parse(localStorage.getItem(HKEY)) || []; } catch { return []; } };
+function showHistory() {
+  const h = loadHist(), el = $('#history'); if (!el) return;
+  el.innerHTML = h.length ? '<h4>Recent fit checks</h4>' + h.slice(0, 5).map(x => `<div><span>${new Date(x.t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${x.side || ''}</span><b style="color:${x.ok ? 'var(--ok)' : 'var(--warn)'}">${x.ok ? '✓ ' : ''}${x.found ? x.dist + ' mm · ' + x.rot + '°' : 'not detected'}</b></div>`).join('') : '';
+}
+
+// ---------- calibration sharing: a clinician calibrates once and sends the link ----------
+const CAL = ['down', 'back', 'angle', 'size', 'tol', 'tolDeg', 'tone'];
+function calLink() { const o = {}; CAL.forEach(k => o[k] = cfg[k]); return location.origin + location.pathname + '#cal=' + btoa(JSON.stringify(o)).replace(/=+$/, ''); }
+function readCalFromLink() {
+  const m = location.hash.match(/cal=([A-Za-z0-9+/_-]+)/); if (!m) return;
+  try { const o = JSON.parse(atob(m[1].replace(/-/g, '+').replace(/_/g, '/'))); CAL.forEach(k => { if (k in o) cfg[k] = o[k]; }); store.set(cfg); toast('Calibration loaded from link.', 3000); } catch { toast('That calibration link is damaged.'); }
+  history.replaceState(null, '', location.pathname + location.search);
 }
 
 // ---------- main loop ----------
@@ -454,7 +573,7 @@ function frame(t) {
   } else if (S.trk && S.trk.age < TRACK_MAX) h = { ...S.trk.h, tracked: true };
   S.prevPyr = pyr;
   if (!h) {
-    S.head = null; S.det = null; S.trk = null; hud([]);
+    S.head = null; S.det = null; S.trk = null; hud([]); glance(null, null, null);
     if (S.step !== 'intro') { const m = 'Face not found. Start facing the camera, then turn slowly.'; setLive(m, 'bad'); speak(m); }
     return;
   }
@@ -462,7 +581,7 @@ function frame(t) {
   hud([['Side', h.side], ['Turn', h.tracked ? 'full profile · ear-locked' : `${Math.abs(h.yaw).toFixed(0)}°`], ['Scale', `${(1 / S.mmPx).toFixed(1)} px/mm`]]);
   if (S.step === 'intro') { if (cfg.mesh) drawOverlay(h, null, null, t); return; }
   if (!sideOk(h)) {
-    S.det = null; S.g = null; drawOverlay(h, null, null, t);
+    S.det = null; S.g = null; drawOverlay(h, null, null, t); glance(h, null, null);
     const m = `Turn your head more to the side (${Math.abs(h.yaw).toFixed(0)}° of ~45°).`; setLive(m, 'warn'); speak('Turn your head more to the side.');
     return;
   }
@@ -472,19 +591,28 @@ function frame(t) {
   if (S.step === 'scan') {
     if (!sideIdeal(h)) { setLive('A little more…', 'warn'); }
     else {
+      const pre = detect(h, patch, vw, vh, false);
+      S.scanDev = pre.found && pre.conf > 0.45 ? (S.scanDev || 0) + 1 : 0;
+      if (S.scanDev >= 5) { S.base[h.side] = null; S.sd = null; toast('Device already on, so no scan is needed. Using live detection.', 3500); go('guide'); drawOverlay(h, null, null, t); return; }
       if (!S.scanAcc || S.scanSide !== h.side) { S.scanAcc = new Float32Array(patch.length); S.scanN = 0; S.scanSide = h.side; }
       for (let k = 0; k < patch.length; k++) S.scanAcc[k] += patch[k];
       S.scanN++; setLive('Hold still…', 'ok');
       $('#ringArc').style.strokeDashoffset = 176 * (1 - S.scanN / SCAN_FRAMES);
       if (S.scanN >= SCAN_FRAMES) {
-        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.ema = null; S.sd = null; beep(1320, 120); go('guide');
+        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.emaB = S.emaS = null; S.sd = null; beep(1320, 120); go('guide');
       }
     }
     drawOverlay(h, null, null, t); return;
   }
-  const d = S.det = smoothDet(detect(h, patch, vw, vh)), g = S.g = guidance(h, d);
+  let raw = detect(h, patch, vw, vh);
+  if (!raw.found && S.base[h.side]) { const alt = detect(h, patch, vw, vh, false); if (alt.found && alt.conf > 0.4) raw = alt; }
+  const d = S.det = smoothDet(raw), g = S.g = guidance(h, d);
   drawOverlay(h, d, g, t);
-  setLive(g.msg, g.cls); speak(g.msg); proximityBeep(d, g.ok);
+  setLive(g.msg, g.cls); speak(g.say || g.msg); proximityBeep(d, g.ok); glance(h, d, g);
+  if (S.step === 'guide') { // hands-free: on target for 1.5 s moves on by itself
+    if (g.ok) { S.goodSince ||= t; if (t - S.goodSince > 1500) { beep(1560, 160); speak('Perfect. Press it on firmly. Checking the fit.', true); go('check'); return; } }
+    else S.goodSince = 0;
+  }
   $('#shutter').classList.toggle('ok', g.ok);
   if (S.step === 'check') {
     if (g.ok && sideIdeal(h)) { S.goodSince ||= t; if (t - S.goodSince > 1200) capture(h, d, g); }
@@ -500,7 +628,12 @@ $('#primary').onclick = async () => {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API not available — open this page over https.');
       await Promise.all([startCamera(), S.lm ? null : loadModel()]);
       beep(660, 1); go('scan');
-    } catch (e) { toast(e.message || 'Could not start camera'); ui.primary.textContent = 'Try again'; }
+    } catch (e) {
+      const m = { NotAllowedError: 'Camera permission was blocked. Allow the camera for this site (lock icon in the address bar), then try again.',
+        NotFoundError: 'No camera found on this device.', NotReadableError: 'The camera is busy in another app. Close it and try again.',
+        OverconstrainedError: 'This camera is not supported. Try the other camera.' }[e.name];
+      toast(m || e.message || 'Could not start camera', 6000); ui.primary.textContent = 'Try again';
+    }
     ui.primary.disabled = false;
   } else if (S.step === 'guide') go('check');
 };
@@ -513,7 +646,10 @@ $('#backBtn').onclick = () => PREV[S.step] && go(PREV[S.step]);
 $('#shutter').onclick = () => capture(S.head, S.det, S.g);
 $('#retake').onclick = () => go('check');
 $('#restart').onclick = () => { S.base = {}; go('scan'); };
-$('#save').onclick = () => { const a = document.createElement('a'); a.href = S.shot; a.download = `chehra-fit-${Date.now()}.jpg`; a.click(); };
+$('#save').onclick = () => {
+  if (window.ChehraAndroid) { toast(window.ChehraAndroid.saveImage(S.shot.split(',')[1]) ? 'Saved to Pictures/Chehra' : 'Could not save'); return; }
+  const a = document.createElement('a'); a.href = S.shot; a.download = `chehra-fit-${Date.now()}.jpg`; a.click();
+};
 $('#flipBtn').onclick = async () => { S.facing = S.facing === 'user' ? 'environment' : 'user'; S.base = {}; await startCamera(); toast('Camera switched — rescan the bare skin for best precision.'); };
 $('#torchBtn').onclick = async () => { S.torch = !S.torch; try { await S.track.applyConstraints({ advanced: [{ torch: S.torch }] }); } catch {} };
 document.querySelectorAll('#camSeg button').forEach(b => b.onclick = () => {
@@ -529,7 +665,7 @@ function syncSettings() {
   document.querySelectorAll('#toneSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === cfg.tone));
 }
 for (const [id, k, fmt] of sliders) $('#' + id).oninput = e => { cfg[k] = +e.target.value; $('#v' + id.slice(1)).textContent = fmt(cfg[k]); store.set(cfg); };
-document.querySelectorAll('#toneSeg button').forEach(b => b.onclick = () => { cfg.tone = b.dataset.t; store.set(cfg); S.ema = null; syncSettings(); });
+document.querySelectorAll('#toneSeg button').forEach(b => b.onclick = () => { cfg.tone = b.dataset.t; store.set(cfg); S.emaB = S.emaS = null; syncSettings(); });
 $('#sVoice').onchange = e => { cfg.voice = e.target.checked; store.set(cfg); };
 $('#sMesh').onchange = e => { cfg.mesh = e.target.checked; store.set(cfg); };
 $('#setBtn').onclick = () => { syncSettings(); $('#settings').classList.add('open'); };
@@ -543,6 +679,11 @@ $('#fromDet').onclick = () => {
   cfg.angle = Math.round(d.rot); cfg.size = Math.round(clamp(d.sizeMM, 10, 45));
   store.set(cfg); S.sd = null; syncSettings(); toast('Saved. This placement is now the target.');
 };
+$('#shareCal').onclick = async () => {
+  const url = calLink();
+  try { if (navigator.share) await navigator.share({ title: 'Chehra calibration', url }); else { await navigator.clipboard.writeText(url); toast('Calibration link copied.'); } }
+  catch { prompt('Copy this calibration link', url); }
+};
 $('#tapSet').onclick = () => { $('#settings').classList.remove('open'); S.tapSet = true; toast('Turn your head to the side, then tap the exact spot behind the ear lobe.', 4000); };
 cv.addEventListener('pointerdown', e => {
   if (!S.tapSet) return;
@@ -552,11 +693,12 @@ cv.addEventListener('pointerdown', e => {
   const a1 = h.down[0], a2 = h.down[1], b1 = h.back[0], b2 = h.back[1], det = a1 * b2 - b1 * a2;
   if (Math.abs(det) < 1e-3) { toast('Turn further to the side and tap again.'); return; }
   cfg.down = clamp(((dx * b2 - b1 * dy) / det) / h.W, 0, 0.4); cfg.back = clamp(((a1 * dy - dx * a2) / det) / h.W, 0, 0.4);
-  store.set(cfg); S.tapSet = false; S.base = {}; S.ema = null;
+  store.set(cfg); S.tapSet = false; S.base = {}; S.emaB = S.emaS = null;
   toast('Target saved. Rescan the bare skin for best precision.'); if (S.step !== 'intro') go('scan');
 });
 
 window.__chehra = { S, cfg: () => cfg, seedTracker }; // test hook
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
-go('intro');
+readCalFromLink();
+go('intro'); showHistory();
 requestAnimationFrame(frame);
