@@ -99,16 +99,18 @@ header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
   </div>
   <aside id="settings">
     <h3>Placement target</h3>
-    <p>Where the Dusq device should sit, measured from the side of the face in face-width units. Tap-to-set is the most precise way: turn your head, tap the exact spot on screen.</p>
-    <button class="btn" id="tapSet">Tap on screen to set target</button>
-    <label>Below ear line <span id="vDown"></span></label><input type="range" id="sDown" min="0" max="0.4" step="0.005">
-    <label>Behind cheek line <span id="vBack"></span></label><input type="range" id="sBack" min="0" max="0.4" step="0.005">
+    <p>Where the Dusq device should sit, measured from the side of the face in face-width units. Most precise: place the device correctly once, then tap <b>Save detected device as target</b>. Position, rotation and size are copied from what the camera sees.</p>
+    <button class="btn" id="fromDet">Save detected device as target</button>
+    <button class="btn ghost" id="tapSet">Tap on screen to set target</button>
+    <label>Below ear line <span id="vDown"></span></label><input type="range" id="sDown" min="0" max="0.45" step="0.005">
+    <label>Behind cheek line <span id="vBack"></span></label><input type="range" id="sBack" min="0" max="0.45" step="0.005">
     <label>Device rotation <span id="vAngle"></span></label><input type="range" id="sAngle" min="-45" max="45" step="1">
     <label>Device size <span id="vSize"></span></label><input type="range" id="sSize" min="10" max="45" step="1">
     <label>Position tolerance <span id="vTol"></span></label><input type="range" id="sTol" min="1" max="10" step="0.5">
     <label>Rotation tolerance <span id="vTolDeg"></span></label><input type="range" id="sTolDeg" min="3" max="30" step="1">
+    <label>Device colour</label><div class="seg" id="toneSeg" style="margin-top:0"><button data-t="dark">Dark</button><button data-t="light">Light</button><button data-t="any">Any</button></div>
     <label><input type="checkbox" id="sVoice"> Voice and beep guidance (for when you can't see the screen)</label>
-    <label><input type="checkbox" id="sMesh"> Show face mesh points</label>
+    <label><input type="checkbox" id="sMesh"> Show face mesh and detection (debug)</label>
     <div class="row"><button class="btn ghost" id="resetCfg">Reset</button><button class="btn" id="closeSet">Done</button></div>
   </aside>
 </div>

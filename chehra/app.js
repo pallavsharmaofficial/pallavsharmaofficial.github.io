@@ -17,7 +17,7 @@ const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { wi
 
 // ---------- config ----------
 const KEY = 'chehra.dusq.v1';
-const DEF = { down: 0.17, back: 0.2, angle: 40, size: 24, tol: 3, tolDeg: 10, voice: true, mesh: false, faceMM: 140 };
+const DEF = { down: 0.29, back: 0.18, angle: 40, size: 30, tol: 3, tolDeg: 10, voice: true, mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -40,8 +40,8 @@ const S = {
   base: {}, scanAcc: null, scanN: 0, ema: null, mmPx: 0, head: null, det: null,
   goodSince: 0, lastVT: -1, tapSet: false, lastSpeak: '', lastSpeakT: 0, lastBeep: 0, xf: null,
 };
-const N = 44;          // patch grid resolution
-const HALF = 0.16;     // patch half-size in face widths
+const N = 48;          // patch grid resolution
+const HALF = 0.28;     // patch half-size in face widths
 const SCAN_FRAMES = 14;
 
 // ---------- model ----------
@@ -82,10 +82,14 @@ function headFrame(f, vw, vh) {
   let mmPx = cfg.faceMM / W;
   if (irisPx > 5) mmPx = 0.5 * mmPx + 0.5 * (11.7 / irisPx);
   S.mmPx = S.mmPx ? S.mmPx * 0.85 + mmPx * 0.15 : mmPx;
-  return { P, W, ear, down, back, out, T, yaw, pitch, side: rightSide ? 'right' : 'left' };
+  const side = rightSide ? 'right' : 'left', sm = S.hs && S.hs.side === side ? S.hs : null, A = 0.4;
+  const f1 = (k, v) => sm ? add(sm[k], mul(sub(v, sm[k]), A)) : v;
+  const o = { P, W: sm ? sm.W + (W - sm.W) * A : W, ear: f1('ear', ear), down: norm(f1('down', down)), back: norm(f1('back', back)), out, T: f1('T', T), yaw, pitch, side };
+  // axes keep their projected length (foreshortening) after normalising in 3D
+  return (S.hs = o);
 }
-const sideOk = h => h.tracked || Math.abs(h.yaw) >= 40;
-const sideIdeal = h => h.tracked || Math.abs(h.yaw) >= 55;
+const sideOk = h => h.tracked || Math.abs(h.yaw) >= 28;
+const sideIdeal = h => h.tracked || Math.abs(h.yaw) >= 36;
 const TRACK_MAX = 450; // frames the tracker may run without the mesh (~15 s)
 
 // ---------- ear tracker hand-off ----------
@@ -155,86 +159,118 @@ function skinRef(h, vw, vh) {
 }
 
 // ---------- device detection ----------
+// Per cell "device evidence" = change from the bare-skin scan (or from skin colour when there is no scan),
+// gated by the device tone (a dark device must be darker than skin, which rules out ear edges and glare).
+// The threshold comes from the outer ring only, so a large device cannot raise its own threshold.
+const lum = (a, o) => 0.299 * a[o] + 0.587 * a[o + 1] + 0.114 * a[o + 2];
 function detect(h, cur, vw, vh) {
-  const base = S.base[h.side];
-  const diff = new Float32Array(N * N);
+  const base = S.base[h.side], skin = skinRef(h, vw, vh) || S.skin;
+  const skinL = skin ? 0.299 * skin[0] + 0.587 * skin[1] + 0.114 * skin[2] : 140;
+  const diff = new Float32Array(N * N), C = (N - 1) / 2;
+  const ringOf = k => Math.hypot((k % N) - C, ((k / N) | 0) - C) / C > 0.72;
+  let g = 1, bx = 0, by = 0;
   if (base) {
-    // lighting gain from the outer ring, where the device should not be
     let sc = 0, sb = 0;
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      if (i > 2 && j > 2 && i < N - 3 && j < N - 3) continue;
-      const k = (j * N + i) * 3; if (cur[k] < 0 || base[k] < 0) continue;
-      sc += cur[k] + cur[k + 1] + cur[k + 2]; sb += base[k] + base[k + 1] + base[k + 2];
-    }
-    const g = sb > 0 ? clamp(sc / sb, 0.6, 1.6) : 1;
-    const cd = (k, kb) => { const o = k * 3, q = kb * 3; if (cur[o] < 0 || base[q] < 0) return 0;
-      return Math.hypot(cur[o] - base[q] * g, cur[o + 1] - base[q + 1] * g, cur[o + 2] - base[q + 2] * g); };
-    // undo tracking/mesh drift: best global shift (±3 cells), scored on the patch border
-    let bx = 0, by = 0, bestE = Infinity;
+    for (let k = 0; k < N * N; k++) if (ringOf(k) && cur[k * 3] >= 0 && base[k * 3] >= 0) { sc += lum(cur, k * 3); sb += lum(base, k * 3); }
+    g = sb > 0 ? clamp(sc / sb, 0.6, 1.6) : 1;
+  }
+  const cd = (k, kb) => { const o = k * 3, q = kb * 3; if (cur[o] < 0 || base[q] < 0) return 0;
+    return Math.hypot(cur[o] - base[q] * g, cur[o + 1] - base[q + 1] * g, cur[o + 2] - base[q + 2] * g); };
+  if (base) { // undo mesh/tracker drift: best global shift (±3 cells), scored on the ring
+    let bestE = Infinity;
     for (let sy = -3; sy <= 3; sy++) for (let sx = -3; sx <= 3; sx++) {
       let e = 0;
-      for (let j = 3; j < N - 3; j++) for (let i = 3; i < N - 3; i++) {
-        if (i > 9 && j > 9 && i < N - 10 && j < N - 10) continue;
-        e += cd(j * N + i, (j + sy) * N + i + sx);
-      }
+      for (let j = 3; j < N - 3; j += 2) for (let i = 3; i < N - 3; i += 2) { const k = j * N + i; if (ringOf(k)) e += cd(k, (j + sy) * N + i + sx); }
       if (e < bestE) { bestE = e; bx = sx; by = sy; }
     }
-    // then each cell takes its closest baseline neighbour, so edges that wobble by a cell do not count
-    for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-      let m = Infinity;
+  }
+  for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+    const k = j * N + i, o = k * 3; if (cur[o] < 0) continue;
+    let v;
+    if (base) { // nearest baseline neighbour, so edges that wobble by a cell do not count
+      v = Infinity;
       for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-        const ii = i + bx + dx, jj = j + by + dy; if (ii < 0 || jj < 0 || ii >= N || jj >= N) continue;
-        m = Math.min(m, cd(j * N + i, jj * N + ii));
+        const ii = i + bx + dx, jj = j + by + dy; if (ii >= 0 && jj >= 0 && ii < N && jj < N) v = Math.min(v, cd(k, jj * N + ii));
       }
-      diff[j * N + i] = m === Infinity ? 0 : m;
-    }
-  } else {
-    const s = skinRef(h, vw, vh); if (!s) return null;
-    for (let k = 0; k < N * N; k++) {
-      const o = k * 3; if (cur[o] < 0) { diff[k] = 0; continue; }
-      diff[k] = Math.hypot(cur[o] - s[0], cur[o + 1] - s[1], cur[o + 2] - s[2]);
-    }
+      if (v === Infinity) v = 0;
+    } else v = skin ? Math.hypot(cur[o] - skin[0], cur[o + 1] - skin[1], cur[o + 2] - skin[2]) : 0;
+    const L = lum(cur, o) / g;
+    if (cfg.tone === 'dark' && L > skinL * 0.72) v *= 0.15;
+    if (cfg.tone === 'light' && L < skinL * 1.12) v *= 0.15;
+    diff[k] = v;
   }
   if (!S.ema || S.ema.length !== diff.length) S.ema = diff;
-  else for (let k = 0; k < diff.length; k++) S.ema[k] = S.ema[k] * 0.55 + diff[k] * 0.45;
-  const e = S.ema, sorted = Float32Array.from(e).sort();
-  const med = sorted[sorted.length >> 1], mad = sorted[(sorted.length * 0.75) | 0] - med;
-  const thr = Math.max(base ? 26 : 45, med + 3 * mad);
+  else for (let k = 0; k < diff.length; k++) S.ema[k] = S.ema[k] * 0.5 + diff[k] * 0.5;
+  const e = S.ema, ring = [];
+  for (let k = 0; k < N * N; k++) if (ringOf(k)) ring.push(e[k]);
+  ring.sort((a, b) => a - b);
+  const rMed = ring[ring.length >> 1], rMad = ring[(ring.length * 0.75) | 0] - rMed;
+  const thr = clamp(rMed + 4 * rMad + 8, base ? 22 : 35, 90);
   const mask = new Uint8Array(N * N); for (let k = 0; k < N * N; k++) mask[k] = e[k] > thr;
-  // connected components; keep the biggest blob whose centre is near the target
+  // 3x3 majority filter removes speckle and thin hair strands
+  const m2 = new Uint8Array(N * N);
+  for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) {
+    let c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) c += mask[(j + dy) * N + i + dx];
+    m2[j * N + i] = c >= 5;
+  }
   const lab = new Int32Array(N * N).fill(-1), q = new Int32Array(N * N);
   let best = null;
   for (let s0 = 0; s0 < N * N; s0++) {
-    if (!mask[s0] || lab[s0] >= 0) continue;
-    let qh = 0, qt = 0, n = 0, sx = 0, sy = 0; q[qt++] = s0; lab[s0] = s0;
+    if (!m2[s0] || lab[s0] >= 0) continue;
+    let qh = 0, qt = 0, n = 0, sx = 0, sy = 0, edge = 0; q[qt++] = s0; lab[s0] = s0;
     const cells = [];
     while (qh < qt) {
       const k = q[qh++], i = k % N, j = (k / N) | 0; n++; sx += i; sy += j; cells.push(k);
+      if (i < 2 || j < 2 || i > N - 3 || j > N - 3) edge++;
       for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= N) continue;
-        const kk = jj * N + ii; if (mask[kk] && lab[kk] < 0) { lab[kk] = s0; q[qt++] = kk; }
+        const kk = jj * N + ii; if (m2[kk] && lab[kk] < 0) { lab[kk] = s0; q[qt++] = kk; }
       }
     }
-    const cx = sx / n, cy = sy / n, rc = Math.hypot(cx - (N - 1) / 2, cy - (N - 1) / 2) / ((N - 1) / 2);
-    if (rc > 0.85) continue;
-    const score = n * (1 - 0.5 * rc);
+    if (n < 6) continue;
+    const cx = sx / n, cy = sy / n, rc = Math.hypot(cx - C, cy - C) / C;
+    if (rc > 0.8 || edge / n > 0.12) continue;     // hair and collars run off the patch edge
+    const score = n * (1 - 0.6 * rc);
     if (!best || score > best.score) best = { n, cx, cy, cells, score };
   }
-  const cellPx = (2 * HALF * h.W) / (N - 1), cellMM = cellPx * S.mmPx;
-  const expected = (cfg.size / cellMM) ** 2;
-  if (!best || best.n < expected * 0.25) return { found: false, mask };
-  // rotation: 4th-order angular moment gives the corner direction of a square, mod 90
-  let s4 = 0, c4 = 0, fill = 0, rmax = 0;
+  const cellPx = (2 * HALF * h.W) / (N - 1), cellMM = cellPx * S.mmPx, expected = (cfg.size / cellMM) ** 2;
+  if (!best || best.n < expected * 0.18) return { found: false, mask: m2, thr };
+  // mean-shift a device-sized window onto the densest mass, so beard or hair touching the device is cut away
+  const side = cfg.size / cellMM, win = side * 0.8;
+  let mx = S.sd?.found ? S.sd.cx : best.cx, my = S.sd?.found ? S.sd.cy : best.cy, cells = best.cells;
+  if (Math.hypot(mx - best.cx, my - best.cy) > side * 1.5) { mx = best.cx; my = best.cy; }
+  for (let it = 0; it < 8; it++) {
+    let sx = 0, sy = 0, n = 0;
+    for (const k of best.cells) { const i = k % N, j = (k / N) | 0; if ((i - mx) ** 2 + (j - my) ** 2 <= win * win) { sx += i; sy += j; n++; } }
+    if (!n) break;
+    const nx = sx / n, ny = sy / n, moved = Math.hypot(nx - mx, ny - my); mx = nx; my = ny; if (moved < 0.05) break;
+  }
+  if (best.n > expected * 1.4) cells = best.cells.filter(k => ((k % N) - mx) ** 2 + (((k / N) | 0) - my) ** 2 <= win * win);
+  if (cells.length < expected * 0.18) return { found: false, mask: m2, thr };
+  best = { ...best, cells, n: cells.length, cx: mx, cy: my };
+  let s4 = 0, c4 = 0, rmax = 0;
   for (const k of best.cells) {
     const du = (k % N) - best.cx, dv = ((k / N) | 0) - best.cy, r2 = du * du + dv * dv, th = Math.atan2(dv, du); // from back toward down, as squarePath rotates
     s4 += r2 * r2 * Math.sin(4 * th); c4 += r2 * r2 * Math.cos(4 * th); rmax = Math.max(rmax, r2);
   }
-  fill = best.n / (Math.PI * rmax || 1);
-  const rot = wrap90(Math.atan2(s4, c4) / 4 * DEG - 45);
-  const half = (N - 1) / 2;
-  const du = (best.cx - half) * cellMM, dv = (best.cy - half) * cellMM; // + = behind / below target
-  return { found: true, mask, du, dv, dist: Math.hypot(du, dv), rot, sizeMM: Math.sqrt(best.n) * cellMM,
-    fill, cx: best.cx, cy: best.cy, cellPx, conf: clamp((best.n / expected) * fill * 1.4, 0, 1) };
+  const fill = best.n / (Math.PI * rmax || 1);
+  return { found: true, mask: m2, thr, du: (best.cx - C) * cellMM, dv: (best.cy - C) * cellMM, rot: wrap90(Math.atan2(s4, c4) / 4 * DEG - 45),
+    sizeMM: Math.sqrt(best.n) * cellMM, fill, cx: best.cx, cy: best.cy, cellPx, conf: clamp((best.n / expected) * fill * 1.4, 0, 1) };
+}
+
+// temporal smoothing + hysteresis so the readout does not flicker
+function smoothDet(d) {
+  const p = S.sd;
+  if (d?.found) {
+    if (p?.found) {
+      const a = 0.25, dr = wrap90(d.rot - p.rot);
+      for (const k of ['du', 'dv', 'cx', 'cy', 'sizeMM', 'conf']) d[k] = p[k] + (d[k] - p[k]) * a;
+      d.rot = wrap90(p.rot + dr * a);
+    }
+    d.dist = Math.hypot(d.du, d.dv); d.miss = 0; return (S.sd = d);
+  }
+  if (p?.found && (p.miss = (p.miss || 0) + 1) < 8) return p;   // hold through short dropouts
+  return (S.sd = d);
 }
 
 // ---------- guidance text ----------
@@ -244,7 +280,10 @@ function guidance(h, d) {
   const tol = cfg.tol;
   if (Math.abs(d.dv) > tol * 0.7) parts.push(`${Math.abs(d.dv).toFixed(0)} mm ${d.dv > 0 ? 'up' : 'down'}`);
   if (Math.abs(d.du) > tol * 0.7) parts.push(`${Math.abs(d.du).toFixed(0)} mm ${d.du > 0 ? 'toward the ear' : 'toward the back of the neck'}`);
-  const rotErr = wrap90(d.rot - cfg.angle);
+  let rotErr = wrap90(d.rot - cfg.angle);
+  // a square looks the same every 90°, so near ±45° keep the direction we said last time
+  if (Math.abs(rotErr) > 38 && S.rotSign && Math.sign(rotErr) !== S.rotSign) rotErr += S.rotSign * 90;
+  S.rotSign = Math.abs(rotErr) > 3 ? Math.sign(rotErr) : 0;
   const posOk = d.dist <= tol, rotOk = Math.abs(rotErr) <= cfg.tolDeg;
   if (posOk && rotOk) return { msg: `Perfect — ${d.dist.toFixed(1)} mm off. Hold still.`, cls: 'ok', ok: true, rotErr };
   let msg = parts.length ? 'Move ' + parts.join(' and ') : '';
@@ -291,6 +330,13 @@ function squarePath(h, cu, cv_, sizePx, rotDeg) {
 function drawOverlay(h, d, g, t) {
   const lw = 2.5 / S.xf.s * S.xf.dpr, sizePx = cfg.size / S.mmPx;
   if (cfg.mesh && h.P) { ctx.fillStyle = '#7fd3ff88'; for (let i = 0; i < 478; i += 2) { const p = h.P(i); ctx.fillRect(p[0] - lw / 2, p[1] - lw / 2, lw, lw); } }
+  if (cfg.mesh && d?.mask) { // detection debug: search area and cells read as device
+    const c = (N - 1) / 2, cp = (2 * HALF * h.W) / (N - 1); ctx.fillStyle = '#ff3b6b99';
+    for (let k = 0; k < N * N; k++) if (d.mask[k]) { const u = (k % N - c) * cp, v = (((k / N) | 0) - c) * cp;
+      ctx.fillRect(h.T[0] + h.back[0] * u + h.down[0] * v - lw, h.T[1] + h.back[1] * u + h.down[1] * v - lw, 2 * lw, 2 * lw); }
+    ctx.strokeStyle = '#ff3b6b'; ctx.lineWidth = lw * 0.6; const R = HALF * h.W; ctx.beginPath();
+    [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([a, b], i) => { const x = h.T[0] + (h.back[0] * a + h.down[0] * b) * R, y = h.T[1] + (h.back[1] * a + h.down[1] * b) * R; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+    ctx.closePath(); ctx.stroke(); }
   const pulse = 0.5 + 0.5 * Math.sin(t / 300);
   // target outline
   squarePath(h, 0, 0, sizePx, cfg.angle);
@@ -417,7 +463,7 @@ function frame(t) {
   if (S.step === 'intro') { if (cfg.mesh) drawOverlay(h, null, null, t); return; }
   if (!sideOk(h)) {
     S.det = null; S.g = null; drawOverlay(h, null, null, t);
-    const m = `Turn your head more to the side (${Math.abs(h.yaw).toFixed(0)}° of ~60°).`; setLive(m, 'warn'); speak('Turn your head more to the side.');
+    const m = `Turn your head more to the side (${Math.abs(h.yaw).toFixed(0)}° of ~45°).`; setLive(m, 'warn'); speak('Turn your head more to the side.');
     return;
   }
   const patch = samplePatch(h, vw, vh);
@@ -431,12 +477,12 @@ function frame(t) {
       S.scanN++; setLive('Hold still…', 'ok');
       $('#ringArc').style.strokeDashoffset = 176 * (1 - S.scanN / SCAN_FRAMES);
       if (S.scanN >= SCAN_FRAMES) {
-        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.ema = null; beep(1320, 120); go('guide');
+        S.base[h.side] = S.scanAcc.map(v => v / S.scanN); S.ema = null; S.sd = null; beep(1320, 120); go('guide');
       }
     }
     drawOverlay(h, null, null, t); return;
   }
-  const d = S.det = detect(h, patch, vw, vh), g = S.g = guidance(h, d);
+  const d = S.det = smoothDet(detect(h, patch, vw, vh)), g = S.g = guidance(h, d);
   drawOverlay(h, d, g, t);
   setLive(g.msg, g.cls); speak(g.msg); proximityBeep(d, g.ok);
   $('#shutter').classList.toggle('ok', g.ok);
@@ -480,13 +526,23 @@ const sliders = [['sDown', 'down', v => `${(v * 100).toFixed(1)}% fw`], ['sBack'
 function syncSettings() {
   for (const [id, k, fmt] of sliders) { $('#' + id).value = cfg[k]; $('#v' + id.slice(1)).textContent = fmt(cfg[k]); }
   $('#sVoice').checked = cfg.voice; $('#sMesh').checked = cfg.mesh;
+  document.querySelectorAll('#toneSeg button').forEach(b => b.classList.toggle('on', b.dataset.t === cfg.tone));
 }
 for (const [id, k, fmt] of sliders) $('#' + id).oninput = e => { cfg[k] = +e.target.value; $('#v' + id.slice(1)).textContent = fmt(cfg[k]); store.set(cfg); };
+document.querySelectorAll('#toneSeg button').forEach(b => b.onclick = () => { cfg.tone = b.dataset.t; store.set(cfg); S.ema = null; syncSettings(); });
 $('#sVoice').onchange = e => { cfg.voice = e.target.checked; store.set(cfg); };
 $('#sMesh').onchange = e => { cfg.mesh = e.target.checked; store.set(cfg); };
 $('#setBtn').onclick = () => { syncSettings(); $('#settings').classList.add('open'); };
 $('#closeSet').onclick = () => $('#settings').classList.remove('open');
 $('#resetCfg').onclick = () => { cfg = { ...DEF }; store.set(cfg); syncSettings(); };
+$('#fromDet').onclick = () => {
+  const d = S.det, h = S.head;
+  if (!d?.found || !h) { toast('Place the device, turn to the side until it is outlined, then try again.', 3500); return; }
+  const k = 1 / (S.mmPx * h.W);
+  cfg.back = clamp(cfg.back + d.du * k, 0, 0.45); cfg.down = clamp(cfg.down + d.dv * k, 0, 0.45);
+  cfg.angle = Math.round(d.rot); cfg.size = Math.round(clamp(d.sizeMM, 10, 45));
+  store.set(cfg); S.sd = null; syncSettings(); toast('Saved. This placement is now the target.');
+};
 $('#tapSet').onclick = () => { $('#settings').classList.remove('open'); S.tapSet = true; toast('Turn your head to the side, then tap the exact spot behind the ear lobe.', 4000); };
 cv.addEventListener('pointerdown', e => {
   if (!S.tapSet) return;
