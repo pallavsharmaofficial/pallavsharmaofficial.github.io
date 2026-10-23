@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chehra · Dusq placement</title>
+<meta name="description" content="Chehra reads the face from the camera in real time. First use: guiding a Dusq device to the spot behind the ear lobe.">
+<meta name="theme-color" content="#0b0b0c">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b0c;--fg:#fff;--dim:rgba(255,255,255,.7);--ok:#3ddc84;--warn:#ffc24a;--bad:#ff5a5a;--card:rgba(20,20,22,.72)}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%;background:var(--bg);color:var(--fg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;overflow:hidden;-webkit-tap-highlight-color:transparent}
+#stage{position:fixed;inset:0}
+#view{position:absolute;inset:0;width:100%;height:100%;display:block}
+.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(#000a,#0000 18%,#0000 55%,#000e 85%)}
+header{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 14px) 16px 10px;display:flex;align-items:center;gap:12px;font-size:13px;letter-spacing:.02em}
+header .t{flex:1;text-align:center;text-transform:uppercase;color:var(--dim)}
+.ib{background:none;border:0;color:#fff;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer}
+.ib svg{width:22px;height:22px}
+#hud{position:absolute;top:calc(env(safe-area-inset-top) + 58px);left:0;right:0;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;padding:0 16px;pointer-events:none}
+.chip{background:var(--card);backdrop-filter:blur(8px);border-radius:999px;padding:5px 10px;font-size:12px;color:var(--dim)}
+.chip b{color:#fff;font-weight:600}
+#brackets{position:absolute;left:12%;right:12%;top:18%;bottom:33%;pointer-events:none;display:none}
+#brackets i{position:absolute;width:48px;height:48px;border:3px solid #fff}
+#brackets i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0;border-top-left-radius:14px}
+#brackets i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0;border-top-right-radius:14px}
+#brackets i:nth-child(3){left:0;bottom:0;border-right:0;border-top:0;border-bottom-left-radius:14px}
+#brackets i:nth-child(4){right:0;bottom:0;border-left:0;border-top:0;border-bottom-right-radius:14px}
+#sheet{position:absolute;left:0;right:0;bottom:0;padding:16px 20px calc(env(safe-area-inset-bottom) + 20px);text-align:center}
+#title{font-size:24px;font-weight:500;line-height:1.2}
+#sub{margin-top:6px;font-size:13px;color:var(--dim);min-height:18px}
+#live{margin:12px auto 0;max-width:420px;font-size:16px;font-weight:600;min-height:22px}
+#live.ok{color:var(--ok)}#live.warn{color:var(--warn)}#live.bad{color:var(--bad)}
+.btn{display:block;width:100%;max-width:420px;margin:16px auto 0;padding:16px;border:0;border-radius:14px;background:#f6f5f3;color:#111;font:600 16px inherit;font-family:inherit;cursor:pointer}
+.btn.ghost{background:transparent;color:#fff;border:1px solid #fff5;margin-top:10px;padding:12px}
+.btn:disabled{opacity:.4}
+#shutterRow{display:none;align-items:center;justify-content:space-between;max-width:360px;margin:18px auto 0}
+#shutter{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:#fff;box-shadow:inset 0 0 0 4px #000;cursor:pointer}
+#shutter.ok{background:var(--ok)}
+.seg{display:inline-flex;background:var(--card);border-radius:999px;padding:4px;margin-top:14px}
+.seg button{border:0;background:none;color:var(--dim);padding:8px 14px;border-radius:999px;font:500 13px inherit;font-family:inherit;cursor:pointer}
+.seg button.on{background:#fff;color:#111}
+#ring{width:64px;height:64px;margin:12px auto 0;display:none}
+#result{position:absolute;inset:0;background:var(--bg);display:none;flex-direction:column;padding:calc(env(safe-area-inset-top) + 16px) 20px calc(env(safe-area-inset-bottom) + 20px);overflow:auto}
+#result img{width:100%;max-width:420px;margin:0 auto;border-radius:16px;display:block}
+#verdict{text-align:center;margin-top:16px;font-size:22px;font-weight:600}
+#rows{max-width:420px;margin:12px auto 0;width:100%}
+#rows div{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #fff1;font-size:14px;color:var(--dim)}
+#rows b{color:#fff}
+#settings{position:absolute;right:0;top:0;bottom:0;width:min(360px,100%);background:#141416f2;backdrop-filter:blur(10px);padding:calc(env(safe-area-inset-top) + 16px) 18px 24px;transform:translateX(100%);transition:transform .25s;overflow:auto;z-index:5}
+#settings.open{transform:none}
+#settings h3{font-size:16px;font-weight:600;margin-bottom:6px}
+#settings p{font-size:12px;color:var(--dim);margin-bottom:12px}
+#settings label{display:block;font-size:13px;margin:14px 0 4px;color:var(--dim)}
+#settings label span{float:right;color:#fff}
+#settings input[type=range]{width:100%}
+#settings .row{display:flex;gap:8px}
+#settings .row .btn{margin-top:14px;padding:11px;font-size:14px}
+#toast{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:var(--card);padding:12px 16px;border-radius:12px;font-size:14px;display:none;text-align:center;max-width:80%}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="view"></canvas>
+  <div class="shade"></div>
+  <div id="brackets"><i></i><i></i><i></i><i></i></div>
+  <header>
+    <button class="ib" id="backBtn" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5m6-6-6 6 6 6"/></svg></button>
+    <div class="t" id="hdr">Chehra</div>
+    <button class="ib" id="setBtn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+  </header>
+  <div id="hud"></div>
+  <div id="sheet">
+    <div id="title">Chehra</div>
+    <div id="sub">Real-time face reading on your camera</div>
+    <svg id="ring" viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" stroke="#fff3" stroke-width="5" fill="none"/><circle id="ringArc" cx="32" cy="32" r="28" stroke="#3ddc84" stroke-width="5" fill="none" stroke-dasharray="176" stroke-dashoffset="176" transform="rotate(-90 32 32)" stroke-linecap="round"/></svg>
+    <div id="live"></div>
+    <div class="seg" id="camSeg"><button data-f="user" class="on">Front camera</button><button data-f="environment">Back camera</button></div>
+    <div id="shutterRow">
+      <button class="ib" id="torchBtn" aria-label="Flash"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></button>
+      <button id="shutter" aria-label="Capture"></button>
+      <button class="ib" id="flipBtn" aria-label="Switch camera"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7h-3l-2-3H9L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="m15 13-3 3-3-3m6-1a3 3 0 0 0-6 0"/></svg></button>
+    </div>
+    <button class="btn" id="primary">Start camera</button>
+    <button class="btn ghost" id="secondary" style="display:none"></button>
+  </div>
+  <div id="toast"></div>
+  <div id="result">
+    <img id="shot" alt="Captured fit check">
+    <div id="verdict"></div>
+    <div id="rows"></div>
+    <button class="btn" id="retake">Retake fit check</button>
+    <button class="btn ghost" id="save">Save photo</button>
+    <button class="btn ghost" id="restart">Start over</button>
+  </div>
+  <aside id="settings">
+    <h3>Placement target</h3>
+    <p>Where the Dusq device should sit, measured from the side of the face in face-width units. Tap-to-set is the most precise way: turn your head, tap the exact spot on screen.</p>
+    <button class="btn" id="tapSet">Tap on screen to set target</button>
+    <label>Below ear line <span id="vDown"></span></label><input type="range" id="sDown" min="0" max="0.4" step="0.005">
+    <label>Behind cheek line <span id="vBack"></span></label><input type="range" id="sBack" min="0" max="0.4" step="0.005">
+    <label>Device rotation <span id="vAngle"></span></label><input type="range" id="sAngle" min="-45" max="45" step="1">
+    <label>Device size <span id="vSize"></span></label><input type="range" id="sSize" min="10" max="45" step="1">
+    <label>Position tolerance <span id="vTol"></span></label><input type="range" id="sTol" min="1" max="10" step="0.5">
+    <label>Rotation tolerance <span id="vTolDeg"></span></label><input type="range" id="sTolDeg" min="3" max="30" step="1">
+    <label><input type="checkbox" id="sVoice"> Voice and beep guidance (for when you can't see the screen)</label>
+    <label><input type="checkbox" id="sMesh"> Show face mesh points</label>
+    <div class="row"><button class="btn ghost" id="resetCfg">Reset</button><button class="btn" id="closeSet">Done</button></div>
+  </aside>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
