@@ -363,33 +363,42 @@ function smoothDet(d) {
 }
 
 // ---------- guidance text ----------
+// placement match: 100% is exact; 5 mm off, or 15° turned, or 3 mm with 6° each cost 10 points. 90% or more is good to go.
+const MATCH_OK = 90;
+const matchOf = (dist, rotErr) => clamp(Math.round(100 - 2 * dist - (2 / 3) * Math.abs(rotErr)), 0, 100);
+const howMuch = mm => (mm > 12 ? '' : mm > 5 ? 'a little ' : 'slightly ');
 function guidance(h, d) {
-  if (!d?.found) return { msg: 'Device not seen yet. Place it on the outline.', say: 'Device not seen', cls: 'warn', ok: false };
-  const parts = [];
-  const tol = cfg.tol;
-  if (Math.abs(d.dv) > tol * 0.7) parts.push(`${Math.abs(d.dv).toFixed(0)} mm ${d.dv > 0 ? 'up' : 'down'}`);
-  if (Math.abs(d.du) > tol * 0.7) parts.push(`${Math.abs(d.du).toFixed(0)} mm ${d.du > 0 ? 'toward the ear' : 'toward the back of the neck'}`);
+  if (!d?.found) return { msg: 'Place the device just below your ear lobe, in the hollow behind the jawbone.', say: 'Device not seen', cls: 'warn', ok: false, match: 0 };
   let rotErr = wrap90(d.rot - cfg.angle);
   // a square looks the same every 90°, so near ±45° keep the direction we said last time
   if (Math.abs(rotErr) > 38 && S.rotSign && Math.sign(rotErr) !== S.rotSign) rotErr += S.rotSign * 90;
   S.rotSign = Math.abs(rotErr) > 3 ? Math.sign(rotErr) : 0;
-  const posOk = d.dist <= tol, rotOk = Math.abs(rotErr) <= cfg.tolDeg;
-  if (posOk && rotOk) return { msg: `Perfect — ${d.dist.toFixed(1)} mm off. Hold still.`, say: 'Perfect. Hold.', cls: 'ok', ok: true, rotErr };
-  // short spoken form, biggest correction first, for when the screen cannot be seen
-  const sayParts = [];
-  const vert = Math.abs(d.dv) > tol * 0.7 && `${d.dv > 0 ? 'Up' : 'Down'} ${Math.round(Math.abs(d.dv))}`;
-  const horz = Math.abs(d.du) > tol * 0.7 && `${d.du > 0 ? 'Forward' : 'Back'} ${Math.round(Math.abs(d.du))}`;
-  (Math.abs(d.dv) >= Math.abs(d.du) ? [vert, horz] : [horz, vert]).forEach(x => x && sayParts.push(x));
-  let msg = parts.length ? 'Move ' + parts.join(' and ') : '', turn = null;
-  if (!rotOk) {
-    // turn the head-frame rotation into a clockwise/anticlockwise instruction on screen
-    const ds = [h.down[0], h.down[1]], bs = [h.back[0], h.back[1]];
-    let cr = bs[0] * ds[1] - bs[1] * ds[0]; if (S.facing === 'user') cr = -cr;
-    const cw = (-rotErr) * cr > 0; turn = cw ? 'cw' : 'ccw';
-    msg += (msg ? ', then ' : '') + `rotate ${Math.abs(rotErr).toFixed(0)}° ${cw ? 'clockwise' : 'anticlockwise'}`;
-    if (posOk || sayParts.length < 2) sayParts.push(`Turn ${cw ? 'clockwise' : 'anticlockwise'}`);
+  const match = matchOf(d.dist, rotErr), ok = match >= MATCH_OK;
+  const posOk = d.dist <= cfg.tol, rotOk = Math.abs(rotErr) <= cfg.tolDeg;
+  const ds = [h.down[0], h.down[1]], bs = [h.back[0], h.back[1]];
+  let cr = bs[0] * ds[1] - bs[1] * ds[0]; if (S.facing === 'user') cr = -cr;
+  const cw = (-rotErr) * cr > 0, turn = Math.abs(rotErr) > 6 ? (cw ? 'cw' : 'ccw') : null;
+  // one or two human corrections, biggest first; only what still matters for the match
+  const moves = [];
+  if (Math.abs(d.dv) > 2) moves.push([Math.abs(d.dv), `${howMuch(Math.abs(d.dv))}${d.dv > 0 ? 'higher' : 'lower'}`]);
+  if (Math.abs(d.du) > 2) moves.push([Math.abs(d.du), `${howMuch(Math.abs(d.du))}${d.du > 0 ? 'toward your ear' : 'away from your ear'}`]);
+  moves.sort((x, y) => y[0] - x[0]);
+  let msg;
+  if (ok) msg = `Good placement — ${match}% match. Hold still.`;
+  else {
+    const slide = moves.length ? 'Slide it ' + moves.map(m => m[1]).join(' and ') : '';
+    const twist = turn && (!moves.length || Math.abs(rotErr) > 12) ? `turn it ${Math.abs(rotErr) > 20 ? '' : 'a little '}${cw ? 'clockwise' : 'anticlockwise'}` : '';
+    msg = [slide, twist].filter(Boolean).join(', then ') || 'Almost there. Hold it steady.';
+    msg = msg[0].toUpperCase() + msg.slice(1) + ` · ${match}%`;
   }
-  return { msg, turn, posOk, rotOk, say: sayParts.slice(0, 2).join('. '), cls: d.dist > tol * 3 ? 'bad' : 'warn', ok: false, rotErr };
+  return { msg, turn, posOk: posOk || ok, rotOk, match, cls: ok ? 'ok' : match >= 70 ? 'warn' : 'bad', ok, rotErr };
+}
+// plain-language description of where the device sits, for the result screen
+function describe(d, rotErr) {
+  const p = [];
+  if (Math.abs(d.dv) > 2) p.push(`${howMuch(Math.abs(d.dv))}${d.dv > 0 ? 'low' : 'high'}`);
+  if (Math.abs(d.du) > 2) p.push(`${howMuch(Math.abs(d.du))}${d.du > 0 ? 'too far back' : 'too close to the ear'}`);
+  return { pos: p.length ? p.join(', ').trim() : 'on the spot', rot: Math.abs(rotErr) <= 6 ? 'straight' : `turned ${Math.abs(rotErr) > 20 ? '' : 'a little '}off` };
 }
 
 // ---------- drawing ----------
@@ -433,11 +442,7 @@ function drawOverlay(h, d, g, t) {
     [[-1, -1], [1, -1], [1, 1], [-1, 1]].forEach(([a, b], i) => { const x = h.T[0] + (h.back[0] * a + h.down[0] * b) * R, y = h.T[1] + (h.back[1] * a + h.down[1] * b) * R; i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
     ctx.closePath(); ctx.stroke(); }
   const pulse = 0.5 + 0.5 * Math.sin(t / 300);
-  // target outline
-  squarePath(h, 0, 0, sizePx, cfg.angle);
-  if (!d?.found) { ctx.fillStyle = `rgba(236,214,196,${0.12 + 0.1 * pulse})`; ctx.fill(); }
-  ctx.setLineDash([6 * lw, 4 * lw]); ctx.lineWidth = lw; ctx.strokeStyle = g?.ok ? '#3ddc84' : '#fff'; ctx.stroke(); ctx.setLineDash([]);
-  ctx.beginPath(); ctx.arc(h.T[0], h.T[1], lw * 1.6, 0, 7); ctx.fillStyle = '#fff'; ctx.fill();
+  drawPatch3D(h, d, g, lw, pulse);
   if (d?.found && S.step !== 'scan') {
     const half = (N - 1) / 2, cu = (d.cx - half) * d.cellPx, cvv = (d.cy - half) * d.cellPx;
     squarePath(h, cu, cvv, d.sizeMM / S.mmPx, d.rot);
@@ -452,6 +457,55 @@ function drawOverlay(h, d, g, t) {
       }
     }
   }
+}
+
+
+// ---------- 3D placement marker ----------
+// The Dusq patch from the placement guide (curved top that hugs the lobe, two studs, centre square, bottom tab),
+// laid on the side of the head with the head's 3D axes: back, down and the outward normal. It foreshortens and
+// tilts with the head, has thickness and a shadow, and turns into a ghost once the device is on it.
+const PATCH = (() => {   // outline in mm, centred on the device position, x = back, y = down
+  const pts = [], q = (x0, y0, cx, cy, x1, y1, n = 10) => { for (let i = 1; i <= n; i++) { const t = i / n, a = (1 - t) ** 2, b = 2 * (1 - t) * t, c = t * t; pts.push([a * x0 + b * cx + c * x1, a * y0 + b * cy + c * y1]); } };
+  pts.push([-21, -9]);
+  q(-21, -9, -2, 1, 19, -14);        // the curved side along the ear lobe
+  q(19, -14, 25, -14, 23, -6, 5);
+  q(23, -6, 22, 9, 15, 12);
+  q(15, 12, 11, 13, 11, 16, 3); pts.push([4, 16]); q(4, 16, 4, 13, 1, 13, 3);   // bottom tab
+  q(1, 13, -18, 16, -21, 6);
+  q(-21, 6, -24, -1, -21, -9, 5);
+  return pts;
+})();
+function drawPatch3D(h, d, g, lw, pulse) {
+  const k = 1 / S.mmPx, r = cfg.angle / DEG, cs = Math.cos(r), sn = Math.sin(r), out = h.out || [0, 0, -1];
+  const P = (x, y, w = 0) => {    // patch mm (x back, y down, w outward) -> video px
+    const u = (x * cs - y * sn) * k, v = (x * sn + y * cs) * k, o = w * k;
+    return [h.T[0] + h.back[0] * u + h.down[0] * v + out[0] * o, h.T[1] + h.back[1] * u + h.down[1] * v + out[1] * o];
+  };
+  const path = w => { ctx.beginPath(); PATCH.forEach(([x, y], i) => { const [a, b] = P(x, y, w); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); }); ctx.closePath(); };
+  const ghost = d?.found, okc = g?.ok;
+  ctx.save();
+  if (!ghost) {
+    // soft contact shadow on the skin, then the side wall, then the top face
+    path(-0.5); ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.filter = 'blur(4px)'; ctx.fill(); ctx.filter = 'none';
+    path(0); ctx.fillStyle = 'rgba(30,120,125,.55)'; ctx.fill();
+    const [ax, ay] = P(-20, -12, 2.5), [bx, by] = P(20, 14, 2.5), gr = ctx.createLinearGradient(ax, ay, bx, by);
+    gr.addColorStop(0, `rgba(140,240,244,${0.45 + 0.15 * pulse})`); gr.addColorStop(1, `rgba(40,170,178,${0.45 + 0.15 * pulse})`);
+    path(2.5); ctx.fillStyle = gr; ctx.fill();
+    // studs and centre square, raised a little more
+    for (const [x, y] of [[-6, -3], [6, -5]]) {
+      const [cx, cy] = P(x, y, 3.2), [ex] = P(x + 3, y, 3.2), rr = Math.max(lw, Math.hypot(ex - cx, P(x + 3, y, 3.2)[1] - cy));
+      const sg = ctx.createRadialGradient(cx - rr * 0.3, cy - rr * 0.3, rr * 0.1, cx, cy, rr);
+      sg.addColorStop(0, '#ffffff'); sg.addColorStop(1, '#9aa4a8'); ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fillStyle = sg; ctx.fill();
+    }
+    ctx.beginPath(); [[-1.5, 4], [2.5, 4], [2.5, 8], [-1.5, 8]].forEach(([x, y], i) => { const [a, b] = P(x, y, 3); i ? ctx.lineTo(a, b) : ctx.moveTo(a, b); });
+    ctx.closePath(); ctx.fillStyle = '#ffffffcc'; ctx.fill();
+  }
+  // rim: pulsing guide line before placement, ghost outline after, green when matched
+  path(2.5); ctx.lineWidth = lw * (ghost ? 1.1 : 1.8);
+  ctx.strokeStyle = okc ? '#3ddc84' : ghost ? 'rgba(92,225,230,.9)' : `rgba(120,240,245,${0.75 + 0.25 * pulse})`;
+  if (ghost && !okc) ctx.setLineDash([5 * lw, 4 * lw]);
+  ctx.shadowColor = okc ? '#3ddc84' : '#5ce1e6'; ctx.shadowBlur = okc ? 22 : 14;
+  ctx.stroke(); ctx.restore();
 }
 
 // ---------- audio (tones and phrasing live in audio.js) ----------
@@ -485,7 +539,7 @@ function glance(h, d, g) {
   const posOk = d.dist <= cfg.tol;
   arrow.style.display = 'grid'; arrow.className = g.cls;
   arrow.querySelector('i').style.display = posOk ? 'none' : ''; arrow.querySelector('i').style.transform = `rotate(${Math.atan2(dy, dx) * DEG}deg)`;
-  arrow.querySelector('b').textContent = posOk ? '⟳' : `${Math.round(d.dist)} mm`;
+  arrow.querySelector('b').textContent = `${g.match}%`;
 }
 
 // ---------- UI ----------
@@ -514,7 +568,7 @@ function go(step) {
     speak('Turn your head to show the side of your neck, behind the ear.', true);
   }
   if (step === 'guide') {
-    ui.title.textContent = 'Place it here'; ui.sub.textContent = 'In the hollow between the back of your jawbone and the bone behind your ear, just below the lobe, curved side along your ear';
+    ui.title.textContent = 'Place it here'; ui.sub.textContent = 'Just below your ear lobe, curved side along the ear';
     ui.primary.textContent = "I've placed it"; ui.secondary.style.display = ''; ui.secondary.textContent = 'Rescan bare skin';
     speak('Feel for the back of your jawbone and the bone behind your ear. Place it in the hollow between them, just below your ear lobe, with the curved side along your ear.', true);
   }
@@ -535,18 +589,16 @@ function capture(h, d, g) {
   $('#saveRaw').style.display = cfg.mesh ? '' : 'none';
   $('#shot').src = img; S.shot = img;
   const ok = g?.ok;
-  $('#verdict').textContent = !d?.found ? 'Device not detected' : ok ? '✓ Placed correctly' : 'Needs adjustment';
+  const m = g?.match ?? 0, how = d?.found ? describe(d, g.rotErr) : null;
+  $('#verdict').textContent = !d?.found ? 'Device not detected' : ok ? `✓ Good to go — ${m}% match` : m >= 70 ? `Almost — ${m}% match` : `Needs adjusting — ${m}% match`;
   $('#verdict').style.color = ok ? 'var(--ok)' : 'var(--warn)';
-  const rows = [['Side', h ? `${h.side} ear` : '—'],
-    ['Offset from target', d?.found ? `${d.dist.toFixed(1)} mm` : '—'],
-    ['Vertical', d?.found ? `${Math.abs(d.dv).toFixed(1)} mm ${d.dv > 0 ? 'low' : 'high'}` : '—'],
-    ['Horizontal', d?.found ? `${Math.abs(d.du).toFixed(1)} mm ${d.du > 0 ? 'too far back' : 'too close to ear'}` : '—'],
-    ['Rotation error', d?.found ? `${Math.abs(g.rotErr).toFixed(0)}°` : '—'],
-    ['Detected size', d?.found ? `${d.sizeMM.toFixed(0)} mm` : '—'],
-    ['Detection confidence', d?.found ? `${Math.round(d.conf * 100)}%` : '—'],
-    ['Head turn', h ? `${Math.abs(h.yaw).toFixed(0)}°` : '—'], ['Advice', g?.msg || 'Show the side of your neck']];
+  const rows = [['Placement match', d?.found ? `${m}% (90% or more is good)` : '—'],
+    ['Position', how ? how.pos : '—'], ['Rotation', how ? how.rot : '—'],
+    ['What to do', ok ? 'Nothing. You are all set.' : (g?.msg || 'Place it just below your ear lobe').replace(/ · \d+%$/, '')],
+    ['Side', h ? `${h.side} ear` : '—'], ['Detection confidence', d?.found ? `${Math.round(d.conf * 100)}%` : '—'],
+    ['Details', d?.found ? `${d.dist.toFixed(1)} mm off · ${Math.abs(g.rotErr).toFixed(0)}° · ${d.sizeMM.toFixed(0)} mm device` : '—']];
   $('#rows').innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
-  const hist = loadHist(); hist.unshift({ t: Date.now(), ok: !!ok, found: !!d?.found, dist: d?.found ? +d.dist.toFixed(1) : null, rot: d?.found ? Math.round(Math.abs(g.rotErr)) : null, side: h?.side });
+  const hist = loadHist(); hist.unshift({ t: Date.now(), ok: !!ok, found: !!d?.found, match: d?.found ? m : null, dist: d?.found ? +d.dist.toFixed(1) : null, rot: d?.found ? Math.round(Math.abs(g.rotErr)) : null, side: h?.side });
   try { localStorage.setItem(HKEY, JSON.stringify(hist.slice(0, 30))); } catch {}
   speak(ok ? 'Placed correctly.' : g?.msg || 'Device not detected.', true);
   go('result');
@@ -556,7 +608,7 @@ const HKEY = 'chehra.dusq.history';
 const loadHist = () => { try { return JSON.parse(localStorage.getItem(HKEY)) || []; } catch { return []; } };
 function showHistory() {
   const h = loadHist(), el = $('#history'); if (!el) return;
-  el.innerHTML = h.length ? '<h4>Recent fit checks</h4>' + h.slice(0, 5).map(x => `<div><span>${new Date(x.t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${x.side || ''}</span><b style="color:${x.ok ? 'var(--ok)' : 'var(--warn)'}">${x.ok ? '✓ ' : ''}${x.found ? x.dist + ' mm · ' + x.rot + '°' : 'not detected'}</b></div>`).join('') : '';
+  el.innerHTML = h.length ? '<h4>Recent fit checks</h4>' + h.slice(0, 5).map(x => `<div><span>${new Date(x.t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })} · ${x.side || ''}</span><b style="color:${x.ok ? 'var(--ok)' : 'var(--warn)'}">${x.ok ? '✓ ' : ''}${x.found ? (x.match != null ? x.match + '% match' : x.dist + ' mm · ' + x.rot + '°') : 'not detected'}</b></div>`).join('') : '';
 }
 
 // ---------- calibration sharing: a clinician calibrates once and sends the link ----------
