@@ -18,7 +18,7 @@ const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { wi
 
 // ---------- config ----------
 const KEY = 'chehra.dusq.v3';   // v3: target, angle and size measured on real camera frames of a correct placement
-const DEF = { down: 0.425, back: 0.385, angle: -27, size: 28, tol: 4, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
+const DEF = { down: 0.425, back: 0.385, angle: -27, size: 28, tol: 5, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -309,7 +309,7 @@ function searchDevice(h, g, skinL) {
   };
   // coarse: around the last position when tracking, else the whole area within ~30 mm of the target
   const prev = S.sd?.found ? [S.sd.du / S.mmPx, S.sd.dv / S.mmPx] : null;
-  const R = (prev ? 6 : 30) * mm, step = (prev ? 1.5 : 3.5) * mm, c0 = prev || [0, 0], s0 = prev ? S.sd.sizeMM : cfg.size;
+  const R = (prev ? 6 : (cfg.searchMM || 30)) * mm, step = (prev ? 1.5 : 3.5) * mm, c0 = prev || [0, 0], s0 = prev ? S.sd.sizeMM : cfg.size;
   // a square repeats every 90°, so four angles 22.5° apart cover every rotation
   const rots = prev ? [S.sd.rot] : [0, 22.5, 45, 67.5].map(a => cfg.angle + a);
   const top = [];
@@ -335,7 +335,7 @@ function searchDevice(h, g, skinL) {
       for (const k in st) st[k] /= 2;
     }
     e.dist = Math.hypot(p.u, p.v) * S.mmPx; t.e = e;
-    if (e.pass && e.dist <= 35 && (!best || e.J > best.e.J)) best = { e, p };
+    if (e.pass && e.dist <= (cfg.searchMM || 30) + 5 && (!best || e.J > best.e.J)) best = { e, p };
   }
   if (!best) {
     const e = top[0]?.e;
@@ -514,9 +514,9 @@ function go(step) {
     speak('Turn your head to show the side of your neck, behind the ear.', true);
   }
   if (step === 'guide') {
-    ui.title.textContent = 'Place it here'; ui.sub.textContent = 'Match the outline, then confirm';
+    ui.title.textContent = 'Place it here'; ui.sub.textContent = 'In the hollow between the back of your jawbone and the bone behind your ear, just below the lobe, curved side along your ear';
     ui.primary.textContent = "I've placed it"; ui.secondary.style.display = ''; ui.secondary.textContent = 'Rescan bare skin';
-    speak('Place the device on the outline behind your ear lobe.', true);
+    speak('Feel for the back of your jawbone and the bone behind your ear. Place it in the hollow between them, just below your ear lobe, with the curved side along your ear.', true);
   }
   if (step === 'check') {
     const dir = side === 'left' ? 'right' : side === 'right' ? 'left' : 'left/right';
@@ -568,6 +568,47 @@ function readCalFromLink() {
   history.replaceState(null, '', location.pathname + location.search);
 }
 
+
+// ---------- ear anchor: how a person places it ("just under this lobe, in the hollow") ----------
+// Face-mesh points are all far forward of the ear in profile, so a mesh-based target swings with head pitch.
+// When a correct placement is saved we remember the look of the ear lobe and the hollow just above the device,
+// in head-aligned millimetres; afterwards we find that ear again by normalised cross-correlation and put the
+// target relative to the ear itself.
+function earSample(h, su, sv, ear, step) {
+  const mm = 1 / S.mmPx, out = [];
+  for (let v = ear.r0; v <= ear.r1 + 1e-6; v += step) for (let u = -ear.c; u <= ear.c + 1e-6; u += step) {
+    const a = (u + su) * mm, b = (v + sv) * mm;
+    const L = lumAt(h.T[0] + h.back[0] * a + h.down[0] * b, h.T[1] + h.back[1] * a + h.down[1] * b); if (L < 0) return null; out.push(L);
+  }
+  return out;
+}
+function zNorm(a) {
+  let m = 0; for (const x of a) m += x; m /= a.length;
+  let v = 0; for (const x of a) v += (x - m) ** 2; v = Math.sqrt(v / a.length) || 1;
+  return a.map(x => (x - m) / v);
+}
+function earTemplate(h, du, dv) {   // h.T at the device; rows above the device top, so the device itself is left out
+  const ear = { side: h.side, r0: -(cfg.size / 2 + 20), r1: -(cfg.size / 2 + 2), c: 15 };
+  const hd = { ...h, T: [h.T[0] + (h.back[0] * du + h.down[0] * dv) / S.mmPx, h.T[1] + (h.back[1] * du + h.down[1] * dv) / S.mmPx, 0] };
+  const z1 = earSample(hd, 0, 0, ear, 1), z2 = earSample(hd, 0, 0, ear, 2);
+  if (!z1 || !z2) return null;
+  const r2 = a => zNorm(a).map(x => Math.round(x * 100) / 100);
+  return { ...ear, z1: r2(z1), z2: r2(z2) };
+}
+function earMatch(h) {
+  const ear = cfg.ear; if (!ear || ear.side !== h.side || !S.img) return null;
+  const ncc = (su, sv, step) => {
+    const s = earSample(h, su, sv, ear, step); if (!s) return -1;
+    const z = zNorm(s), t = step === 2 ? ear.z2 : ear.z1; if (z.length !== t.length) return -1;
+    let c = 0; for (let i = 0; i < z.length; i++) c += z[i] * t[i]; return c / z.length;
+  };
+  let best = -1, bu = 0, bv = 0;
+  for (let sv = -21; sv <= 21; sv += 3) for (let su = -21; su <= 21; su += 3) { const c = ncc(su, sv, 2); if (c > best) { best = c; bu = su; bv = sv; } }
+  const cu = bu, cv = bv;
+  for (let sv = cv - 2; sv <= cv + 2; sv++) for (let su = cu - 2; su <= cu + 2; su++) { const c = ncc(su, sv, 1); if (c > best) { best = c; bu = su; bv = sv; } }
+  return best > 0.5 ? { su: bu, sv: bv, ncc: best } : null;
+}
+
 // ---------- main loop ----------
 function frame(t) {
   requestAnimationFrame(frame);
@@ -593,7 +634,7 @@ function frame(t) {
     return;
   }
   S.head = h;
-  hud([['Side', h.side], ['Turn', h.tracked ? 'full profile · ear-locked' : `${Math.abs(h.yaw).toFixed(0)}°`], ['Scale', `${(1 / S.mmPx).toFixed(1)} px/mm`], ...(S.blink && performance.now() - S.blink.t < 2500 ? [['LED', 'seen']] : [])]);
+  hud([['Side', h.side], ['Turn', h.tracked ? 'full profile · ear-locked' : `${Math.abs(h.yaw).toFixed(0)}°`], ['Scale', `${(1 / S.mmPx).toFixed(1)} px/mm`], ...(cfg.ear?.side === h.side && S.earShift && performance.now() - S.earT < 1500 ? [['Target', 'ear-locked']] : []), ...(S.blink && performance.now() - S.blink.t < 2500 ? [['LED', 'seen']] : [])]);
   if (S.step === 'intro') { if (cfg.mesh) drawOverlay(h, null, null, t); return; }
   if (!sideOk(h)) {
     S.det = null; S.g = null; drawOverlay(h, null, null, t); glance(h, null, null);
@@ -602,6 +643,17 @@ function frame(t) {
   }
   const patch = samplePatch(h, vw, vh);
   if (!patch) { setLive('Move a bit back so the ear and neck are in view.', 'warn'); drawOverlay(h, null, null, t); return; }
+  if (cfg.ear?.side === h.side) {   // re-find the remembered ear and put the target relative to it
+    if (!S.earShift || !(S.fN % 3)) {
+      const m = earMatch(h);
+      if (m) { S.earShift = S.earShift && performance.now() - S.earT < 1500 ? [S.earShift[0] * 0.6 + m.su * 0.4, S.earShift[1] * 0.6 + m.sv * 0.4] : [m.su, m.sv]; S.earT = performance.now(); S.earNcc = m.ncc; }
+    }
+    if (S.earShift && performance.now() - S.earT < 1500) {
+      const [su, sv] = S.earShift;
+      h = { ...h, earLocked: true, T: [h.T[0] + (h.back[0] * su + h.down[0] * sv) / S.mmPx, h.T[1] + (h.back[1] * su + h.down[1] * sv) / S.mmPx, h.T[2]] };
+      S.head = h;
+    }
+  }
 
   if (S.step === 'scan') {
     if (!sideIdeal(h)) { setLive('A little more…', 'warn'); }
@@ -704,9 +756,13 @@ $('#fromDet').onclick = () => {
   const d = S.det, h = S.head;
   if (!d?.found || !h) { toast('Place the device, turn to the side until it is outlined, then try again.', 3500); return; }
   const k = 1 / (S.mmPx * h.W);
-  cfg.back = clamp(cfg.back + d.du * k, 0, 0.45); cfg.down = clamp(cfg.down + d.dv * k, 0, 0.45);
+  const ear = earTemplate(h, d.du, d.dv);
+  // the mesh target moves onto the device, and the ear around it is remembered so the target follows the real ear
+  cfg.back = clamp(cfg.back + d.du * k, -0.2, 0.7); cfg.down = clamp(cfg.down + d.dv * k, -0.2, 0.7);
   cfg.angle = Math.round(d.rot); cfg.size = Math.round(clamp(d.sizeMM, 10, 45));
-  store.set(cfg); S.sd = null; syncSettings(); toast('Saved. This placement is now the target.');
+  if (ear) cfg.ear = ear;
+  store.set(cfg); S.sd = null; S.earShift = null; syncSettings();
+  toast(ear ? 'Saved. Your ear around this placement is remembered, so the target follows your ear.' : 'Saved. This placement is now the target.', 4000);
 };
 $('#shareCal').onclick = async () => {
   const url = calLink();

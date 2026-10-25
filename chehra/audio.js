@@ -93,7 +93,7 @@ export function createGuide(opts) {
       if (!s.found) {
         st.main = null;
         if (!st.unseenSince) st.unseenSince = now;
-        if (now - st.unseenSince > 1500) say(pick(["I can't see the device yet. Place it just below your ear lobe.", 'Place the device just below your ear lobe, on the outline.']), now, { gap: 10000 });
+        if (now - st.unseenSince > 1500) say(pick(["I can't see the device yet. Place it in the hollow just below your ear lobe, between the jawbone and the bone behind your ear.", 'Place it just below your ear lobe, in the hollow between the two bony parts.']), now, { gap: 10000 });
         if (st.onTarget && now - st.unseenSince > 800) st.onTarget = false;
         return;
       }
