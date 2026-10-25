@@ -17,8 +17,8 @@ const grab = document.createElement('canvas'), gctx = grab.getContext('2d', { wi
 const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { willReadFrequently: true });
 
 // ---------- config ----------
-const KEY = 'chehra.dusq.v2';   // v2: defaults measured from a correct placement; v1 targets were for the old detector
-const DEF = { down: 0.33, back: 0.19, angle: 10, size: 34, tol: 4, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
+const KEY = 'chehra.dusq.v3';   // v3: target, angle and size measured on real camera frames of a correct placement
+const DEF = { down: 0.425, back: 0.385, angle: -27, size: 28, tol: 4, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -42,7 +42,7 @@ const S = {
   goodSince: 0, lastVT: -1, tapSet: false, lastSpeak: '', lastSpeakT: 0, lastBeep: 0, xf: null,
 };
 const N = 48;          // patch grid resolution
-const HALF = 0.28;     // patch half-size in face widths
+const HALF = 0.4;     // patch half-size in face widths
 const SCAN_FRAMES = 14;
 
 // ---------- model ----------
@@ -215,61 +215,14 @@ function detect(h, cur, vw, vh, useBase = true) {
     let c = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) c += mask[(j + dy) * N + i + dx];
     m2[j * N + i] = c >= 5;
   }
-  const lab = new Int32Array(N * N).fill(-1), q = new Int32Array(N * N);
-  const cands = [];
-  for (let s0 = 0; s0 < N * N; s0++) {
-    if (!m2[s0] || lab[s0] >= 0) continue;
-    let qh = 0, qt = 0, n = 0, sx = 0, sy = 0, edge = 0; q[qt++] = s0; lab[s0] = s0;
-    const cells = [];
-    while (qh < qt) {
-      const k = q[qh++], i = k % N, j = (k / N) | 0; n++; sx += i; sy += j; cells.push(k);
-      if (i < 2 || j < 2 || i > N - 3 || j > N - 3) edge++;
-      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const ii = i + di, jj = j + dj; if (ii < 0 || jj < 0 || ii >= N || jj >= N) continue;
-        const kk = jj * N + ii; if (m2[kk] && lab[kk] < 0) { lab[kk] = s0; q[qt++] = kk; }
-      }
-    }
-    if (n < 6) continue;
-    const cx = sx / n, cy = sy / n, rc = Math.hypot(cx - C, cy - C) / C;
-    if (rc > 0.68) continue;               // the device is looked for within ~25 mm of the target
-    cands.push({ n, cx, cy, cells, score: n * (1 - 0.5 * rc) * (1 - Math.min(0.8, edge / n * 3)) });
-  }
-  const cellPx = (2 * HALF * h.W) / (N - 1), cellMM = cellPx * S.mmPx, expected = (cfg.size / cellMM) ** 2;
-  const side = cfg.size / cellMM, win = side * 0.8;
-  cands.sort((x, y) => y.score - x.score);
-  let reject = null;
-  for (const cand of cands.slice(0, 3)) {
-    if (cand.n < expected * 0.15) continue;
-    // mean-shift a device-sized window onto the densest mass, so beard or hair touching the device is cut away
-    let mx = cand.cx, my = cand.cy;
-    if (S.sd?.found && Math.hypot(S.sd.cx - cand.cx, S.sd.cy - cand.cy) < side * 1.5) { mx = S.sd.cx; my = S.sd.cy; }
-    for (let it = 0; it < 8; it++) {
-      let sx = 0, sy = 0, n = 0;
-      for (const k of cand.cells) { const i = k % N, j = (k / N) | 0; if ((i - mx) ** 2 + (j - my) ** 2 <= win * win) { sx += i; sy += j; n++; } }
-      if (!n) break;
-      const nx = sx / n, ny = sy / n, moved = Math.hypot(nx - mx, ny - my); mx = nx; my = ny; if (moved < 0.05) break;
-    }
-    const cells = cand.cells.filter(k => ((k % N) - mx) ** 2 + (((k / N) | 0) - my) ** 2 <= win * win);
-    if (cells.length < expected * 0.15) continue;
-    let s4 = 0, c4 = 0;
-    for (const k of cells) {
-      const du = (k % N) - mx, dv = ((k / N) | 0) - my, r2 = du * du + dv * dv, th = Math.atan2(dv, du); // from back toward down, as squarePath rotates
-      s4 += r2 * r2 * Math.sin(4 * th); c4 += r2 * r2 * Math.cos(4 * th);
-    }
-    const rot0 = S.sd?.found ? S.sd.rot : wrap90(Math.atan2(s4, c4) / 4 * DEG - 45);
-    const fit = fitDevice(h, (mx - C) * cellPx, (my - C) * cellPx, rot0, g, skinL, skin);
-    if (!fit.ok) { reject = reject || fit; continue; }
-    return { found: true, mask: m2, thr, fit, du: fit.u * S.mmPx, dv: fit.v * S.mmPx, rot: fit.rot, sizeMM: fit.size,
-      cx: C + fit.u / cellPx, cy: C + fit.v / cellPx, cellPx, conf: fit.conf };
-  }
-  return { found: false, mask: m2, thr, fit: reject };
+  const cellPx = (2 * HALF * h.W) / (N - 1), fit = searchDevice(h, g, skinL);
+  if (!fit.ok) return { found: false, mask: m2, thr, fit };
+  return { found: true, mask: m2, thr, fit, du: fit.u * S.mmPx, dv: fit.v * S.mmPx, rot: fit.rot, sizeMM: fit.size,
+    cx: C + fit.u / cellPx, cy: C + fit.v / cellPx, cellPx, conf: fit.conf };
 }
 
-// ---------- device verification: rotated rounded-square template at full camera resolution ----------
-// The Dusq device is a dark, smooth rounded square with a bright rim. Hair and beard are dark too, but textured,
-// rimless and dark on at least one side, so they fail this fit. The fit also refines centre, rotation and size.
 const RGB = [0, 0, 0];
-function lumAt(x, y) {   // 2x2 mean; also leaves the colour in RGB
+function lumAt(x, y) {   // 2x2 mean of the full-resolution patch; also leaves the colour in RGB
   const I = S.img; if (!I) return -1;
   const xi = Math.round(x - I.x0), yi = Math.round(y - I.y0);
   if (xi < 0 || yi < 0 || xi >= I.bw - 1 || yi >= I.bh - 1) return -1;
@@ -278,85 +231,88 @@ function lumAt(x, y) {   // 2x2 mean; also leaves the colour in RGB
   RGB[0] = r / 4; RGB[1] = gg / 4; RGB[2] = b / 4;
   return 0.299 * RGB[0] + 0.587 * RGB[1] + 0.114 * RGB[2];
 }
-// Device geometry (from the product photo), in units of the half-side hs of the dark face:
-//   dark smooth rounded square, corner radius ~0.25 hs, ringed by a thin bright rim;
-//   a black strap sticks out on two opposite sides, so only two outer sides are reliably skin;
-//   white logo: two marks side by side at (-0.24, 0) and (+0.18, 0), a dot at (+0.32, -0.24).
-// The rim loop and the logo pair are what nothing else near the ear has; the logo also fixes the true orientation.
-const LOGO = [[-0.24, 0], [0.18, 0]], LOGO_DOT = [0.32, -0.24];
-function fitDevice(h, u0, v0, rotDeg, g, skinL, skin) {
-  const mm = 1 / S.mmPx;   // axis units per millimetre
+
+// ---------- device search: the Dusq face as seen on real camera frames ----------
+// A dark, smooth rounded square (the body continues as a dark strip under the lobe, so only the top and
+// bottom edges meet skin), carrying two white marks side by side. Measured on real frames:
+//   device   logo 43-78, texture 3-8, 2nd edge 12-28        hair   bright gaps but texture ~30
+//   beard / ear edge: edges up to 29 but no two-mark logo     -> the logo pair inside a smooth face decides.
+// Searched directly around the target (no blob stage, which merges beard, hair and device), then refined.
+function searchDevice(h, g, skinL) {
+  const mm = 1 / S.mmPx;
   const at = (cu, cv, cs, sn, a, b) => lumAt(h.T[0] + h.back[0] * (cu + a * cs - b * sn) + h.down[0] * (cv + a * sn + b * cs),
     h.T[1] + h.back[1] * (cu + a * cs - b * sn) + h.down[1] * (cv + a * sn + b * cs)) / g;
-  const evalAt = (cu, cv, r, s) => {
+  const ev = (u, v, r, s) => {
     const cs = Math.cos(r / DEG), sn = Math.sin(r / DEG), hs = s / 2 * mm, ins = [];
     for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) {
-      if (Math.abs(i) <= 1 && Math.abs(j) <= 1) continue;               // the logo lives in the middle
-      const L = at(cu, cv, cs, sn, i / 3 * 0.6 * hs, j / 3 * 0.6 * hs); if (L < 0) return null; ins.push(L);
+      if (Math.abs(i) <= 1 && Math.abs(j) <= 1) continue;            // the logo lives in the middle
+      const L = at(u, v, cs, sn, i * 0.2 * hs, j * 0.2 * hs); if (L < 0) return null; ins.push(L);
     }
     ins.sort((x, y) => x - y);
-    const body = ins.slice(0, (ins.length * 0.85) | 0), Li = body[body.length >> 1];
+    const body = ins.slice(0, 34), Li = body[17];
     let tex = 0; for (const L of body) tex += Math.abs(L - Li); tex /= body.length;
-    // per side: edge alignment (1 mm out vs 1 mm in, peaks exactly on the boundary), true rim (a bright line
-    // darker on both sides, seen against the strap when close), and the outer band for skin/brightness checks
-    const rim = [], sides = [], edges = []; let skinSides = 0;
+    const E = [];
     for (let k = 0; k < 4; k++) {
-      let sum = 0, n = 0, cr = 0, cg = 0, cb = 0, eSum = 0;
-      const P = (o, w) => k === 0 ? [o, w] : k === 1 ? [-o, w] : k === 2 ? [w, o] : [w, -o];
+      let e = 0;
       for (let t = -2; t <= 2; t++) {
-        const w = t / 2 * 0.55 * hs;
-        const Lin = at(cu, cv, cs, sn, ...P(hs - 1.0 * mm, w)), Lo1 = at(cu, cv, cs, sn, ...P(hs + 1.0 * mm, w)), Lo2 = at(cu, cv, cs, sn, ...P(hs + 2.6 * mm, w));
-        if (Lin < 0 || Lo1 < 0 || Lo2 < 0) return null;
-        let peak = -1;
-        for (let off = -0.6; off <= 0.61; off += 0.3) { const L = at(cu, cv, cs, sn, ...P(hs + off * mm, w)); if (L > peak) peak = L; }
-        rim.push(peak - Math.max(Lin, Lo2));
-        eSum += Lo1 - Lin;
-        sum += Lo2; n++; cr += RGB[0]; cg += RGB[1]; cb += RGB[2];
+        const w = t * 0.275 * hs, o1 = hs + 1.2 * mm, o0 = hs - 1.2 * mm;
+        const [a1, b1, a0, b0] = k === 0 ? [o1, w, o0, w] : k === 1 ? [-o1, w, -o0, w] : k === 2 ? [w, o1, w, o0] : [w, -o1, w, -o0];
+        const L1 = at(u, v, cs, sn, a1, b1), L0 = at(u, v, cs, sn, a0, b0); if (L1 < 0 || L0 < 0) return null; e += L1 - L0;
       }
-      edges.push(eSum / 5); sides.push(sum / n - Li);
-      if (skin) { const tt = cr + cg + cb || 1, ts = skin[0] + skin[1] + skin[2] || 1;
-        if (Math.hypot(cr / tt - skin[0] / ts, cg / tt - skin[1] / ts) < 0.035 && (cr / n) / g > skin[0] * 0.55) skinSides++; }
+      E.push(e / 5);
     }
-    edges.sort((x, y) => y - x);
-    rim.sort((x, y) => x - y);
-    const rimMed = rim[rim.length >> 1], rimQ = rim[(rim.length * 0.25) | 0];
-    sides.sort((x, y) => y - x);
-    // logo: both marks bright against the face, tried at each quarter turn; the best one is the true orientation
-    let logo = -99, quarter = 0;
-    for (let q = 0; q < 4; q++) {
+    E.sort((x, y) => y - x);
+    const r0 = { Li, tex, e1: E[0], e2: E[1], l2: -99, q: 0 };
+    if (tex > 14 || E[1] < 8) { r0.J = -1e9; return r0; }             // cheap rejection before the logo test
+    for (let q = 0; q < 4; q++) {                                      // two marks: left and right halves both bright
       const c = Math.cos(q * Math.PI / 2), d = Math.sin(q * Math.PI / 2);
-      const m = LOGO.map(([x, y]) => at(cu, cv, cs, sn, (x * c - y * d) * hs, (x * d + y * c) * hs) - Li);
-      const v = Math.min(...m); if (v > logo) { logo = v; quarter = q; }
-    }
-    const J = edges[1] + 0.3 * edges[0] + 0.5 * Math.max(0, rimMed) + 0.4 * Math.max(0, logo) - 2 * tex + 4 * skinSides;
-    return { Li, tex, rimMed, rimQ, e2: edges[1], s2: sides[1], s3: sides[2], logo, quarter, skinSides, J };
-  };
-  let p = { u: u0, v: v0, rot: rotDeg, size: cfg.size }, best = null;
-  for (const f of [0.75, 1, 1.25]) { const e = evalAt(u0, v0, rotDeg, cfg.size * f); if (e && (!best || e.J > best.J)) { best = e; p.size = cfg.size * f; } }
-  if (!best) return { ok: false, why: 'edge' };
-  let st = { u: 2 * mm, v: 2 * mm, rot: 8, size: 3 };
-  for (let round = 0; round < 4; round++) {
-    let improved = true, guard = 0;
-    while (improved && guard++ < 6) {
-      improved = false;
-      for (const k of ['u', 'v', 'rot', 'size']) for (const sgn of [1, -1]) {
-        const q = { ...p, [k]: p[k] + sgn * st[k] };
-        if (q.size < 16 || q.size > 48 || Math.hypot(q.u - u0, q.v - v0) > p.size * 0.5 * mm) continue;
-        const e = evalAt(q.u, q.v, q.rot, q.size);
-        if (e && e.J > best.J) { best = e; p = q; improved = true; }
+      let L = -1, R = -1;
+      for (let i = 0; i < 5; i++) for (let j = 0; j < 4; j++) {
+        const a = (0.05 + i * 0.0875) * hs, b = (-0.15 + j * 0.1) * hs;
+        R = Math.max(R, at(u, v, cs, sn, a * c - b * d, a * d + b * c));
+        L = Math.max(L, at(u, v, cs, sn, -a * c - b * d, -a * d + b * c));
       }
+      const l2 = Math.min(L, R) - Li; if (l2 > r0.l2) { r0.l2 = l2; r0.q = q; }
     }
-    for (const k in st) st[k] /= 2;
+    r0.J = r0.e2 + 0.3 * r0.e1 - 2.5 * tex + 0.6 * Math.min(r0.l2, 60) - 0.5 * Li;
+    // darker than the skin right above or below it (cheek colour is unreliable in profile: it lands on the beard)
+    r0.pass = r0.l2 >= 25 && tex <= 12 && r0.e2 >= 12 && r0.e1 >= 18;
+    return r0;
+  };
+  // coarse: around the last position when tracking, else the whole area within ~30 mm of the target
+  const prev = S.sd?.found ? [S.sd.du / S.mmPx, S.sd.dv / S.mmPx] : null;
+  const R = (prev ? 6 : 30) * mm, step = (prev ? 1.5 : 3) * mm, c0 = prev || [0, 0], s0 = prev ? S.sd.sizeMM : cfg.size;
+  const rots = prev ? [S.sd.rot] : [cfg.angle - 15, cfg.angle, cfg.angle + 15];
+  const top = [];
+  for (let v = -R; v <= R + 1e-6; v += step) for (let u = -R; u <= R + 1e-6; u += step) for (const r of rots) {
+    const e = ev(c0[0] + u, c0[1] + v, r, s0); if (!e || e.J < -1e8) continue;
+    top.push({ e, p: { u: c0[0] + u, v: c0[1] + v, rot: r, size: s0 } });
   }
-  const texR = best.tex / Math.max(8, best.s2);
-  const dark = best.Li < skinL * 0.62, smooth = texR < 0.3, near = Math.hypot(p.u, p.v) * S.mmPx <= 24;
-  const onSkin = !skin || best.skinSides >= 1;
-  const rimOk = best.rimQ > 12, edgeOk = best.e2 > 18 && best.s2 > 22, logoOk = best.logo > 30;
-  const ok = dark && smooth && near && onSkin && edgeOk && (rimOk || logoOk || best.s3 > 18);
-  const conf = clamp(Math.min(best.e2 / 45, 1) * (rimOk || logoOk ? 1 : 0.85) * clamp(1 - texR / 0.45, 0, 1), 0, 1);
-  return { ok, conf, u: p.u, v: p.v, rot: wrap90(p.rot), heading: ((p.rot + best.quarter * 90) % 360 + 360) % 360, size: p.size,
-    rimQ: best.rimQ, rimMed: best.rimMed, e2: best.e2, s2: best.s2, s3: best.s3, logo: best.logo, texR, Li: best.Li, skinSides: best.skinSides,
-    why: ok ? '' : !near ? 'too far from target' : !dark ? 'not dark' : !smooth ? 'textured (hair?)' : !onSkin ? 'not on skin' : 'no clear edge' };
+  top.sort((a, b) => b.e.J - a.e.J);
+  let best = null;
+  for (const t of top.slice(0, 3)) {                                  // refine the strongest few
+    let { e, p } = t, st = { u: 1.5 * mm, v: 1.5 * mm, rot: 6, size: 3 };
+    for (let round = 0; round < 4; round++) {
+      for (let guard = 0, imp = true; imp && guard < 6; guard++) {
+        imp = false;
+        for (const k of ['u', 'v', 'rot', 'size']) for (const sg of [1, -1]) {
+          const q = { ...p, [k]: p[k] + sg * st[k] }; if (q.size < 20 || q.size > 42) continue;
+          const f = ev(q.u, q.v, q.rot, q.size); if (f && f.J > e.J) { e = f; p = q; imp = true; }
+        }
+      }
+      for (const k in st) st[k] /= 2;
+    }
+    e.dist = Math.hypot(p.u, p.v) * S.mmPx; t.e = e;
+    if (e.pass && e.dist <= 35 && (!best || e.J > best.e.J)) best = { e, p };
+  }
+  if (!best) {
+    const e = top[0]?.e;
+    return { ...(e || {}), ok: false, why: !e ? 'no candidate' : e.l2 < 25 ? 'no logo seen' : e.tex > 12 ? 'textured (hair?)' : e.dist > 35 ? 'too far from target' : 'no clear edge' };
+  }
+  const { e, p } = best;
+  const conf = clamp(Math.min(e.l2, 60) / 60 * 0.5 + Math.min(e.e2, 30) / 30 * 0.3 + (1 - e.tex / 12) * 0.2, 0, 1);
+  return { ok: true, conf, u: p.u, v: p.v, rot: wrap90(p.rot), heading: ((p.rot + e.q * 90) % 180 + 180) % 180, size: p.size,
+    l2: e.l2, e2: e.e2, e1: e.e1, tex: e.tex, Li: e.Li };
 }
 
 // temporal smoothing + hysteresis so the readout does not flicker

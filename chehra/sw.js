@@ -1,5 +1,5 @@
 // Offline: the app shell is precached; the model and wasm are cached on first use (large, versioned with the app).
-const C = 'chehra-v5';
+const C = 'chehra-v6';
 const SHELL = ['./', 'index.html', 'app.js', 'track.js', 'audio.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png'];
 self.addEventListener('install', e => { self.skipWaiting(); e.waitUntil(caches.open(C).then(c => c.addAll(SHELL)).catch(() => {})); });
 self.addEventListener('activate', e => e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== C).map(x => caches.delete(x)))).then(() => self.clients.claim())));
