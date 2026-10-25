@@ -278,36 +278,62 @@ function lumAt(x, y) {   // 2x2 mean; also leaves the colour in RGB
   RGB[0] = r / 4; RGB[1] = gg / 4; RGB[2] = b / 4;
   return 0.299 * RGB[0] + 0.587 * RGB[1] + 0.114 * RGB[2];
 }
+// Device geometry (from the product photo), in units of the half-side hs of the dark face:
+//   dark smooth rounded square, corner radius ~0.25 hs, ringed by a thin bright rim;
+//   a black strap sticks out on two opposite sides, so only two outer sides are reliably skin;
+//   white logo: two marks side by side at (-0.24, 0) and (+0.18, 0), a dot at (+0.32, -0.24).
+// The rim loop and the logo pair are what nothing else near the ear has; the logo also fixes the true orientation.
+const LOGO = [[-0.24, 0], [0.18, 0]], LOGO_DOT = [0.32, -0.24];
 function fitDevice(h, u0, v0, rotDeg, g, skinL, skin) {
   const mm = 1 / S.mmPx;   // axis units per millimetre
   const at = (cu, cv, cs, sn, a, b) => lumAt(h.T[0] + h.back[0] * (cu + a * cs - b * sn) + h.down[0] * (cv + a * sn + b * cs),
     h.T[1] + h.back[1] * (cu + a * cs - b * sn) + h.down[1] * (cv + a * sn + b * cs)) / g;
   const evalAt = (cu, cv, r, s) => {
     const cs = Math.cos(r / DEG), sn = Math.sin(r / DEG), hs = s / 2 * mm, ins = [];
-    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) { const L = at(cu, cv, cs, sn, i / 3 * 0.62 * hs, j / 3 * 0.62 * hs); if (L < 0) return null; ins.push(L); }
-    ins.sort((x, y) => x - y);
-    const body = ins.slice(0, (ins.length * 0.8) | 0), Li = body[body.length >> 1];   // brightest 20% is the logo
-    let tex = 0; for (const L of body) tex += Math.abs(L - Li); tex /= body.length;
-    const sides = []; let skinSides = 0;
-    for (let k = 0; k < 4; k++) {
-      let sum = 0, n = 0, cr = 0, cg = 0, cb = 0;
-      for (let t = -3; t <= 3; t++) for (const off of [1.0, 2.2]) {
-        const o = hs + off * mm, w = t / 3 * 0.6 * hs;
-        const [a, b] = k === 0 ? [o, w] : k === 1 ? [-o, w] : k === 2 ? [w, o] : [w, -o];
-        const L = at(cu, cv, cs, sn, a, b); if (L < 0) return null; sum += L; n++; cr += RGB[0]; cg += RGB[1]; cb += RGB[2];
-      }
-      sides.push(sum / n - Li);
-      // is this side skin? compare chromaticity, so light and shadow on the skin both count
-      if (skin) { const t = cr + cg + cb || 1, ts = skin[0] + skin[1] + skin[2] || 1;
-        if (Math.hypot(cr / t - skin[0] / ts, cg / t - skin[1] / ts) < 0.035 && (cr / n) / g > skin[0] * 0.55) skinSides++; }
+    for (let i = -3; i <= 3; i++) for (let j = -3; j <= 3; j++) {
+      if (Math.abs(i) <= 1 && Math.abs(j) <= 1) continue;               // the logo lives in the middle
+      const L = at(cu, cv, cs, sn, i / 3 * 0.6 * hs, j / 3 * 0.6 * hs); if (L < 0) return null; ins.push(L);
     }
+    ins.sort((x, y) => x - y);
+    const body = ins.slice(0, (ins.length * 0.85) | 0), Li = body[body.length >> 1];
+    let tex = 0; for (const L of body) tex += Math.abs(L - Li); tex /= body.length;
+    // per side: edge alignment (1 mm out vs 1 mm in, peaks exactly on the boundary), true rim (a bright line
+    // darker on both sides, seen against the strap when close), and the outer band for skin/brightness checks
+    const rim = [], sides = [], edges = []; let skinSides = 0;
+    for (let k = 0; k < 4; k++) {
+      let sum = 0, n = 0, cr = 0, cg = 0, cb = 0, eSum = 0;
+      const P = (o, w) => k === 0 ? [o, w] : k === 1 ? [-o, w] : k === 2 ? [w, o] : [w, -o];
+      for (let t = -2; t <= 2; t++) {
+        const w = t / 2 * 0.55 * hs;
+        const Lin = at(cu, cv, cs, sn, ...P(hs - 1.0 * mm, w)), Lo1 = at(cu, cv, cs, sn, ...P(hs + 1.0 * mm, w)), Lo2 = at(cu, cv, cs, sn, ...P(hs + 2.6 * mm, w));
+        if (Lin < 0 || Lo1 < 0 || Lo2 < 0) return null;
+        let peak = -1;
+        for (let off = -0.6; off <= 0.61; off += 0.3) { const L = at(cu, cv, cs, sn, ...P(hs + off * mm, w)); if (L > peak) peak = L; }
+        rim.push(peak - Math.max(Lin, Lo2));
+        eSum += Lo1 - Lin;
+        sum += Lo2; n++; cr += RGB[0]; cg += RGB[1]; cb += RGB[2];
+      }
+      edges.push(eSum / 5); sides.push(sum / n - Li);
+      if (skin) { const tt = cr + cg + cb || 1, ts = skin[0] + skin[1] + skin[2] || 1;
+        if (Math.hypot(cr / tt - skin[0] / ts, cg / tt - skin[1] / ts) < 0.035 && (cr / n) / g > skin[0] * 0.55) skinSides++; }
+    }
+    edges.sort((x, y) => y - x);
+    rim.sort((x, y) => x - y);
+    const rimMed = rim[rim.length >> 1], rimQ = rim[(rim.length * 0.25) | 0];
     sides.sort((x, y) => y - x);
-    const ctr = (sides[0] + sides[1] + sides[2]) / 3;
-    return { Li, tex, s3: sides[2], s4: sides[3], ctr, skinSides, J: sides[2] + 0.5 * sides[3] + 0.3 * ctr - 2 * tex + 6 * skinSides };
+    // logo: both marks bright against the face, tried at each quarter turn; the best one is the true orientation
+    let logo = -99, quarter = 0;
+    for (let q = 0; q < 4; q++) {
+      const c = Math.cos(q * Math.PI / 2), d = Math.sin(q * Math.PI / 2);
+      const m = LOGO.map(([x, y]) => at(cu, cv, cs, sn, (x * c - y * d) * hs, (x * d + y * c) * hs) - Li);
+      const v = Math.min(...m); if (v > logo) { logo = v; quarter = q; }
+    }
+    const J = edges[1] + 0.3 * edges[0] + 0.5 * Math.max(0, rimMed) + 0.4 * Math.max(0, logo) - 2 * tex + 4 * skinSides;
+    return { Li, tex, rimMed, rimQ, e2: edges[1], s2: sides[1], s3: sides[2], logo, quarter, skinSides, J };
   };
-  let p = { u: u0, v: v0, rot: rotDeg, size: cfg.size }, best = evalAt(p.u, p.v, p.rot, p.size);
+  let p = { u: u0, v: v0, rot: rotDeg, size: cfg.size }, best = null;
+  for (const f of [0.75, 1, 1.25]) { const e = evalAt(u0, v0, rotDeg, cfg.size * f); if (e && (!best || e.J > best.J)) { best = e; p.size = cfg.size * f; } }
   if (!best) return { ok: false, why: 'edge' };
-  // coordinate search, steps halve each round
   let st = { u: 2 * mm, v: 2 * mm, rot: 8, size: 3 };
   for (let round = 0; round < 4; round++) {
     let improved = true, guard = 0;
@@ -315,19 +341,22 @@ function fitDevice(h, u0, v0, rotDeg, g, skinL, skin) {
       improved = false;
       for (const k of ['u', 'v', 'rot', 'size']) for (const sgn of [1, -1]) {
         const q = { ...p, [k]: p[k] + sgn * st[k] };
-        if (q.size < cfg.size * 0.8 || q.size > cfg.size * 1.2 || Math.hypot(q.u - u0, q.v - v0) > cfg.size * 0.45 * mm) continue;
+        if (q.size < 16 || q.size > 48 || Math.hypot(q.u - u0, q.v - v0) > p.size * 0.5 * mm) continue;
         const e = evalAt(q.u, q.v, q.rot, q.size);
         if (e && e.J > best.J) { best = e; p = q; improved = true; }
       }
     }
     for (const k in st) st[k] /= 2;
   }
-  const texR = best.tex / Math.max(1, best.ctr);
-  const onSkin = !skin || best.skinSides >= 2, near = Math.hypot(p.u, p.v) * S.mmPx <= 24;
-  const ok = best.s3 > 18 && best.Li < skinL * 0.62 && texR < 0.28 && onSkin && near;
-  const conf = clamp((best.s3 - 12) / 40, 0, 1) * clamp(1 - texR / 0.4, 0, 1) * clamp(0.6 + best.s4 / 50, 0, 1);
-  return { ok, conf, u: p.u, v: p.v, rot: wrap90(p.rot), size: p.size, s3: best.s3, s4: best.s4, texR, Li: best.Li, skinSides: best.skinSides,
-    why: ok ? '' : !near ? 'too far from target' : !onSkin ? 'not on skin' : best.Li >= skinL * 0.62 ? 'not dark' : texR >= 0.28 ? 'textured (hair?)' : 'no clear edge' };
+  const texR = best.tex / Math.max(8, best.s2);
+  const dark = best.Li < skinL * 0.62, smooth = texR < 0.3, near = Math.hypot(p.u, p.v) * S.mmPx <= 24;
+  const onSkin = !skin || best.skinSides >= 1;
+  const rimOk = best.rimQ > 12, edgeOk = best.e2 > 18 && best.s2 > 22, logoOk = best.logo > 30;
+  const ok = dark && smooth && near && onSkin && edgeOk && (rimOk || logoOk || best.s3 > 18);
+  const conf = clamp(Math.min(best.e2 / 45, 1) * (rimOk || logoOk ? 1 : 0.85) * clamp(1 - texR / 0.45, 0, 1), 0, 1);
+  return { ok, conf, u: p.u, v: p.v, rot: wrap90(p.rot), heading: ((p.rot + best.quarter * 90) % 360 + 360) % 360, size: p.size,
+    rimQ: best.rimQ, rimMed: best.rimMed, e2: best.e2, s2: best.s2, s3: best.s3, logo: best.logo, texR, Li: best.Li, skinSides: best.skinSides,
+    why: ok ? '' : !near ? 'too far from target' : !dark ? 'not dark' : !smooth ? 'textured (hair?)' : !onSkin ? 'not on skin' : 'no clear edge' };
 }
 
 // temporal smoothing + hysteresis so the readout does not flicker
@@ -512,6 +541,10 @@ function go(step) {
 
 function capture(h, d, g) {
   const img = cv.toDataURL('image/jpeg', 0.9);
+  // the clean camera frame, no overlays, for tuning the detector on real devices
+  const rc = document.createElement('canvas'); rc.width = video.videoWidth; rc.height = video.videoHeight;
+  rc.getContext('2d').drawImage(video, 0, 0); S.raw = rc.toDataURL('image/jpeg', 0.95);
+  $('#saveRaw').style.display = cfg.mesh ? '' : 'none';
   $('#shot').src = img; S.shot = img;
   const ok = g?.ok;
   $('#verdict').textContent = !d?.found ? 'Device not detected' : ok ? '✓ Placed correctly' : 'Needs adjustment';
@@ -641,6 +674,11 @@ $('#backBtn').onclick = () => PREV[S.step] && go(PREV[S.step]);
 $('#shutter').onclick = () => capture(S.head, S.det, S.g);
 $('#retake').onclick = () => go('check');
 $('#restart').onclick = () => { S.base = {}; go('scan'); };
+const saveImg = (url, name) => {
+  if (window.ChehraAndroid) { toast(window.ChehraAndroid.saveImage(url.split(',')[1]) ? 'Saved to Pictures/Chehra' : 'Could not save'); return; }
+  const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+};
+$('#saveRaw').onclick = () => saveImg(S.raw, `chehra-raw-${Date.now()}.jpg`);
 $('#save').onclick = () => {
   if (window.ChehraAndroid) { toast(window.ChehraAndroid.saveImage(S.shot.split(',')[1]) ? 'Saved to Pictures/Chehra' : 'Could not save'); return; }
   const a = document.createElement('a'); a.href = S.shot; a.download = `chehra-fit-${Date.now()}.jpg`; a.click();
