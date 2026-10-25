@@ -121,8 +121,9 @@ function samplePatch(h, vw, vh) {
     const k = (j * N + i) * 2; pts[k] = x; pts[k + 1] = y;
     x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
   }
-  x0 = Math.max(0, Math.floor(x0) - 1); y0 = Math.max(0, Math.floor(y0) - 1);
-  x1 = Math.min(vw - 1, Math.ceil(x1) + 1); y1 = Math.min(vh - 1, Math.ceil(y1) + 1);
+  const mg = Math.ceil(0.14 * h.W);   // margin: the device template needs pixels around a device at the edge
+  x0 = Math.max(0, Math.floor(x0) - mg); y0 = Math.max(0, Math.floor(y0) - mg);
+  x1 = Math.min(vw - 1, Math.ceil(x1) + mg); y1 = Math.min(vh - 1, Math.ceil(y1) + mg);
   const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
   if (bw < 8 || bh < 8) return null;
   grab.width = bw; grab.height = bh;
@@ -142,7 +143,29 @@ function samplePatch(h, vw, vh) {
     }
     out[k * 3] = r / c; out[k * 3 + 1] = g / c; out[k * 3 + 2] = b / c;
   }
+  if (inside > N * N * 0.7) findBlink(h, out);
   return inside > N * N * 0.7 ? out : null;
+}
+
+// LED blink: a small spot whose brightness jumps (on or off) between frames while its surroundings stay put.
+// The grid moves with the head, so head motion largely cancels; the LED sits at the right logo mark.
+function findBlink(h, out) {
+  const p = S.prevGrid; S.prevGrid = { g: out, side: h.side };
+  if (!p || p.side !== h.side) return;
+  const L = (a, k) => 0.299 * a[k * 3] + 0.587 * a[k * 3 + 1] + 0.114 * a[k * 3 + 2];
+  let best = 0, bi = -1;
+  for (let j = 2; j < N - 2; j++) for (let i = 2; i < N - 2; i++) {
+    const k = j * N + i; if (out[k * 3] < 0 || p.g[k * 3] < 0) continue;
+    const dl = Math.abs(L(out, k) - L(p.g, k)); if (dl < 38 || dl <= best) continue;
+    let ring = 0, n = 0;
+    for (const [di, dj] of [[2, 0], [-2, 0], [0, 2], [0, -2], [2, 2], [-2, -2], [2, -2], [-2, 2]]) {
+      const kk = (j + dj) * N + i + di; if (out[kk * 3] < 0 || p.g[kk * 3] < 0) continue; ring += Math.abs(L(out, kk) - L(p.g, kk)); n++;
+    }
+    if (n && ring / n < 10) { best = dl; bi = k; }
+  }
+  if (bi < 0) return;
+  const C = (N - 1) / 2, cp = (2 * HALF * h.W) / (N - 1);
+  S.blink = { u: ((bi % N) - C) * cp, v: (((bi / N) | 0) - C) * cp, t: performance.now(), dl: best };
 }
 
 function skinRef(h, vw, vh) {
@@ -263,7 +286,7 @@ function searchDevice(h, g, skinL) {
     }
     E.sort((x, y) => y - x);
     const r0 = { Li, tex, e1: E[0], e2: E[1], l2: -99, q: 0 };
-    if (tex > 14 || E[1] < 8) { r0.J = -1e9; return r0; }             // cheap rejection before the logo test
+    if (tex > 14 || E[0] < 8) { r0.J = -1e9; return r0; }             // cheap rejection before the logo test
     for (let q = 0; q < 4; q++) {                                      // two marks: left and right halves both bright
       const c = Math.cos(q * Math.PI / 2), d = Math.sin(q * Math.PI / 2);
       let L = -1, R = -1;
@@ -274,23 +297,32 @@ function searchDevice(h, g, skinL) {
       }
       const l2 = Math.min(L, R) - Li; if (l2 > r0.l2) { r0.l2 = l2; r0.q = q; }
     }
-    r0.J = r0.e2 + 0.3 * r0.e1 - 2.5 * tex + 0.6 * Math.min(r0.l2, 60) - 0.5 * Li;
+    // an LED blink inside this face is near-proof it is the device
+    const bl = S.blink && performance.now() - S.blink.t < 2500 && Math.hypot(S.blink.u - u, S.blink.v - v) < 0.75 * hs;
+    r0.blink = !!bl;
+    r0.J = 0.5 * r0.e2 + 0.3 * r0.e1 - 2.5 * tex + 0.8 * Math.min(r0.l2, 60) - 0.3 * Li + (bl ? 25 : 0);
     // darker than the skin right above or below it (cheek colour is unreliable in profile: it lands on the beard)
-    r0.pass = r0.l2 >= 25 && tex <= 12 && r0.e2 >= 12 && r0.e1 >= 18;
+    // under room light the glossy face can read grey and meet the strap or hair on three sides,
+    // so the logo pair in a very smooth face decides and edges only support it
+    r0.pass = tex <= 10 && r0.e1 >= 12 && (r0.l2 >= 28 || (bl && r0.l2 >= 12));
     return r0;
   };
   // coarse: around the last position when tracking, else the whole area within ~30 mm of the target
   const prev = S.sd?.found ? [S.sd.du / S.mmPx, S.sd.dv / S.mmPx] : null;
-  const R = (prev ? 6 : 30) * mm, step = (prev ? 1.5 : 3) * mm, c0 = prev || [0, 0], s0 = prev ? S.sd.sizeMM : cfg.size;
-  const rots = prev ? [S.sd.rot] : [cfg.angle - 15, cfg.angle, cfg.angle + 15];
+  const R = (prev ? 6 : 30) * mm, step = (prev ? 1.5 : 3.5) * mm, c0 = prev || [0, 0], s0 = prev ? S.sd.sizeMM : cfg.size;
+  // a square repeats every 90°, so four angles 22.5° apart cover every rotation
+  const rots = prev ? [S.sd.rot] : [0, 22.5, 45, 67.5].map(a => cfg.angle + a);
   const top = [];
+  if (S.blink && performance.now() - S.blink.t < 2500) for (const r of [0, 22.5, 45, 67.5]) {   // seed at a blink
+    const e = ev(S.blink.u, S.blink.v, cfg.angle + r, s0); if (e && e.J > -1e8) top.push({ e, p: { u: S.blink.u, v: S.blink.v, rot: cfg.angle + r, size: s0 } });
+  }
   for (let v = -R; v <= R + 1e-6; v += step) for (let u = -R; u <= R + 1e-6; u += step) for (const r of rots) {
     const e = ev(c0[0] + u, c0[1] + v, r, s0); if (!e || e.J < -1e8) continue;
     top.push({ e, p: { u: c0[0] + u, v: c0[1] + v, rot: r, size: s0 } });
   }
   top.sort((a, b) => b.e.J - a.e.J);
   let best = null;
-  for (const t of top.slice(0, 3)) {                                  // refine the strongest few
+  for (const t of top.slice(0, 4)) {                                  // refine the strongest few
     let { e, p } = t, st = { u: 1.5 * mm, v: 1.5 * mm, rot: 6, size: 3 };
     for (let round = 0; round < 4; round++) {
       for (let guard = 0, imp = true; imp && guard < 6; guard++) {
@@ -312,7 +344,7 @@ function searchDevice(h, g, skinL) {
   const { e, p } = best;
   const conf = clamp(Math.min(e.l2, 60) / 60 * 0.5 + Math.min(e.e2, 30) / 30 * 0.3 + (1 - e.tex / 12) * 0.2, 0, 1);
   return { ok: true, conf, u: p.u, v: p.v, rot: wrap90(p.rot), heading: ((p.rot + e.q * 90) % 180 + 180) % 180, size: p.size,
-    l2: e.l2, e2: e.e2, e1: e.e1, tex: e.tex, Li: e.Li };
+    l2: e.l2, e2: e.e2, e1: e.e1, tex: e.tex, Li: e.Li, blink: e.blink };
 }
 
 // temporal smoothing + hysteresis so the readout does not flicker
@@ -561,7 +593,7 @@ function frame(t) {
     return;
   }
   S.head = h;
-  hud([['Side', h.side], ['Turn', h.tracked ? 'full profile · ear-locked' : `${Math.abs(h.yaw).toFixed(0)}°`], ['Scale', `${(1 / S.mmPx).toFixed(1)} px/mm`]]);
+  hud([['Side', h.side], ['Turn', h.tracked ? 'full profile · ear-locked' : `${Math.abs(h.yaw).toFixed(0)}°`], ['Scale', `${(1 / S.mmPx).toFixed(1)} px/mm`], ...(S.blink && performance.now() - S.blink.t < 2500 ? [['LED', 'seen']] : [])]);
   if (S.step === 'intro') { if (cfg.mesh) drawOverlay(h, null, null, t); return; }
   if (!sideOk(h)) {
     S.det = null; S.g = null; drawOverlay(h, null, null, t); glance(h, null, null);
@@ -587,7 +619,13 @@ function frame(t) {
     }
     drawOverlay(h, null, null, t); return;
   }
-  let raw = detect(h, patch, vw, vh);
+  const tD = performance.now();
+  // while searching, the full scan runs every third frame (blinks are still checked every frame); tracking runs every frame
+  S.fN = (S.fN || 0) + 1;
+  const blinkFresh = S.blink && performance.now() - S.blink.t < 300;
+  let raw = !S.sd?.found && S.lastRaw && S.fN % 3 && !blinkFresh ? S.lastRaw : detect(h, patch, vw, vh);
+  S.lastRaw = raw;
+  S.detMs = S.detMs ? S.detMs * 0.9 + (performance.now() - tD) * 0.1 : performance.now() - tD;
   if (!raw.found && S.base[h.side]) { const alt = detect(h, patch, vw, vh, false); if (alt.found && alt.conf > 0.4) raw = alt; }
   const d = S.det = smoothDet(raw), g = S.g = guidance(h, d);
   drawOverlay(h, d, g, t);
