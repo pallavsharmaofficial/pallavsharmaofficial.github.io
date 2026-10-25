@@ -18,7 +18,7 @@ const gcnv = document.createElement('canvas'), gc2d = gcnv.getContext('2d', { wi
 
 // ---------- config ----------
 const KEY = 'chehra.dusq.v3';   // v3: target, angle and size measured on real camera frames of a correct placement
-const DEF = { down: 0.425, back: 0.385, angle: -27, size: 28, tol: 5, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
+const DEF = { down: 0.398, back: 0.371, angle: -27, size: 28, tol: 5, tolDeg: 15, sound: 'all', mesh: false, tone: 'dark', faceMM: 140 };
 const store = { get() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } },
   set(v) { try { localStorage.setItem(KEY, JSON.stringify(v)); } catch {} } };
 let cfg = { ...DEF, ...store.get() };
@@ -363,9 +363,11 @@ function smoothDet(d) {
 }
 
 // ---------- guidance text ----------
-// placement match: 100% is exact; 5 mm off, or 15° turned, or 3 mm with 6° each cost 10 points. 90% or more is good to go.
+// placement match: 100% is exact; 10 mm off or 20° turned each cost 10 points; 90% or more is good to go.
+// Tuned on 500 augmented real frames: the face-mesh target varies ~4.5 mm per axis with camera conditions, so at
+// 90%-at-10 mm, 85% of correct placements pass under heavy augmentation, while 15 mm or more off still fails.
 const MATCH_OK = 90;
-const matchOf = (dist, rotErr) => clamp(Math.round(100 - 2 * dist - (2 / 3) * Math.abs(rotErr)), 0, 100);
+const matchOf = (dist, rotErr) => clamp(Math.round(100 - dist - 0.5 * Math.abs(rotErr)), 0, 100);
 const howMuch = mm => (mm > 12 ? '' : mm > 5 ? 'a little ' : 'slightly ');
 function guidance(h, d) {
   if (!d?.found) return { msg: 'Place the device just below your ear lobe, in the hollow behind the jawbone.', say: 'Device not seen', cls: 'warn', ok: false, match: 0 };
@@ -476,6 +478,7 @@ const PATCH = (() => {   // outline in mm, centred on the device position, x = b
   return pts;
 })();
 function drawPatch3D(h, d, g, lw, pulse) {
+  if (!S.mmPx || !isFinite(S.mmPx)) return;
   const k = 1 / S.mmPx, r = cfg.angle / DEG, cs = Math.cos(r), sn = Math.sin(r), out = h.out || [0, 0, -1];
   const P = (x, y, w = 0) => {    // patch mm (x back, y down, w outward) -> video px
     const u = (x * cs - y * sn) * k, v = (x * sn + y * cs) * k, o = w * k;
@@ -647,7 +650,7 @@ function earTemplate(h, du, dv) {   // h.T at the device; rows above the device 
   const r2 = a => zNorm(a).map(x => Math.round(x * 100) / 100);
   return { ...ear, z1: r2(z1), z2: r2(z2) };
 }
-function earMatch(h) {
+function earMatch(h, wide) {
   const ear = cfg.ear; if (!ear || ear.side !== h.side || !S.img) return null;
   const ncc = (su, sv, step) => {
     const s = earSample(h, su, sv, ear, step); if (!s) return -1;
@@ -655,7 +658,8 @@ function earMatch(h) {
     let c = 0; for (let i = 0; i < z.length; i++) c += z[i] * t[i]; return c / z.length;
   };
   let best = -1, bu = 0, bv = 0;
-  for (let sv = -21; sv <= 21; sv += 3) for (let su = -21; su <= 21; su += 3) { const c = ncc(su, sv, 2); if (c > best) { best = c; bu = su; bv = sv; } }
+  const W = wide ? 45 : 21, st = wide ? 4 : 3;
+  for (let sv = -W; sv <= W; sv += st) for (let su = -W; su <= W; su += st) { const c = ncc(su, sv, 2); if (c > best) { best = c; bu = su; bv = sv; } }
   const cu = bu, cv = bv;
   for (let sv = cv - 2; sv <= cv + 2; sv++) for (let su = cu - 2; su <= cu + 2; su++) { const c = ncc(su, sv, 1); if (c > best) { best = c; bu = su; bv = sv; } }
   return best > 0.5 ? { su: bu, sv: bv, ncc: best } : null;
@@ -671,14 +675,18 @@ function frame(t) {
   if (!S.lm || video.currentTime === S.lastVT) { if (S.head && S.step !== 'intro') drawOverlay(S.head, S.det, S.g, t); return; }
   S.lastVT = video.currentTime;
   const res = S.lm.detectForVideo(video, performance.now());
-  const f = res.faceLandmarks?.[0];
+  const f = S.forceNoMesh ? null : res.faceLandmarks?.[0];
   const pyr = S.step === 'intro' ? null : greyPyramid(video, vw, vh, gcnv, gc2d);
   if (pyr) stepTracker(pyr);
   let h = null;
   if (f) {
-    h = headFrame(f, vw, vh); h.tracked = false;
+    h = headFrame(f, vw, vh); h.tracked = false; S.lastMesh = { h: { ...h, P: null }, t: performance.now() }; S.earAbs = null;
     if (pyr) { if (!S.trk || S.trk.age > 8 || S.trk.pts.length < 30) seedTracker(h, pyr); else S.trk.h = { ...h, P: null }; }
   } else if (S.trk && S.trk.age < TRACK_MAX) h = { ...S.trk.h, tracked: true };
+  // no mesh and no tracker (full profile, or the face left the frame): with a remembered ear, keep the last head
+  // orientation and let the ear search, widened below, find where the ear is now
+  else if (cfg.ear && S.lastMesh && performance.now() - S.lastMesh.t < 60000 && cfg.ear.side === S.lastMesh.h.side)
+    h = { ...S.lastMesh.h, ...(S.earAbs ? { T: S.earAbs } : {}), tracked: true, earOnly: true };
   S.prevPyr = pyr;
   if (!h) {
     S.head = null; S.det = null; S.trk = null; hud([]); glance(null, null, null);
@@ -697,13 +705,15 @@ function frame(t) {
   if (!patch) { setLive('Move a bit back so the ear and neck are in view.', 'warn'); drawOverlay(h, null, null, t); return; }
   if (cfg.ear?.side === h.side) {   // re-find the remembered ear and put the target relative to it
     if (!S.earShift || !(S.fN % 3)) {
-      const m = earMatch(h);
+      const m = earMatch(h, h.earOnly && !S.earAbs);
       if (m) { S.earShift = S.earShift && performance.now() - S.earT < 1500 ? [S.earShift[0] * 0.6 + m.su * 0.4, S.earShift[1] * 0.6 + m.sv * 0.4] : [m.su, m.sv]; S.earT = performance.now(); S.earNcc = m.ncc; }
     }
+    if (h.earOnly && !(S.earShift && performance.now() - S.earT < 1500)) { S.earAbs = null; }
     if (S.earShift && performance.now() - S.earT < 1500) {
       const [su, sv] = S.earShift;
       h = { ...h, earLocked: true, T: [h.T[0] + (h.back[0] * su + h.down[0] * sv) / S.mmPx, h.T[1] + (h.back[1] * su + h.down[1] * sv) / S.mmPx, h.T[2]] };
       S.head = h;
+      if (h.earOnly) { S.earAbs = h.T; S.earShift = [0, 0]; }
     }
   }
 
@@ -735,7 +745,7 @@ function frame(t) {
   drawOverlay(h, d, g, t);
   setLive(g.msg, g.cls); glance(h, d, g);
   guide.update({ found: !!d?.found, ok: g.ok, dist: d?.dist, du: d?.du, dv: d?.dv, rotErr: g.rotErr, turn: g.turn, posOk: g.posOk, tol: cfg.tol });
-  if (S.step === 'guide') { // hands-free: on target for 1.5 s moves on by itself
+  if (S.step === 'guide' && !S.noAdvance) { // hands-free: on target for 1.5 s moves on by itself
     if (g.ok) { S.goodSince ||= t; if (t - S.goodSince > 1500) { beep('done'); speak('Perfect. Press it on firmly. Checking the fit.', true); go('check'); return; } }
     else S.goodSince = 0;
   }
@@ -834,8 +844,15 @@ cv.addEventListener('pointerdown', e => {
   toast('Target saved. Rescan the bare skin for best precision.'); if (S.step !== 'intro') go('scan');
 });
 
-window.__chehra = { S, cfg: () => cfg, seedTracker }; // test hook
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+window.__chehra = { S, cfg: () => cfg, seedTracker, go }; // test hook
+// updates: a new service worker takes over at once and the page reloads one time, so phones never keep an old build
+const BUILD = '2026.10.25-4';
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').then(r => r.update()).catch(() => {});
+  let reloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!reloaded && S.step === 'intro') { reloaded = true; location.reload(); } });
+}
+document.querySelector('.privacy').textContent = `Video stays on this device. Nothing is uploaded. Build ${BUILD}`;
 readCalFromLink();
 go('intro'); showHistory();
 requestAnimationFrame(frame);
