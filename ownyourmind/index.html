@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>OwnYourMind · The inner voice that watches your autopilot</title>
+<meta name="description" content="Half of life is lived on autopilot. OwnYourMind knocks at random moments, asks who is driving, and draws a map of your inner world — built on experience-sampling research and the Upanishadic witness (Sakshi). Free Android app and web app. Nothing leaves your phone.">
+<meta property="og:title" content="OwnYourMind — watch the autopilot, take back the reins">
+<meta property="og:description" content="Random witness pings, an Inner Map of your mind, practices from the Upanishads to modern psychology. Private, free, offline.">
+<meta property="og:image" content="https://pallavsharmaofficial.github.io/ownyourmind/img/witness.jpg">
+<meta name="theme-color" content="#070B16">
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#070B16; --surface:#0E1424; --card:#151D33; --line:#223052;
+  --gold:#D4B062; --gold-soft:#EBD49A; --violet:#8E74D6; --teal:#3FBFB0; --coral:#E8776E; --green:#4CC38A;
+  --text:#EEF0F6; --text2:#A3ACBF; --text3:#66708A;
+  --wrap:1120px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:400 17px/1.65 Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:var(--gold)}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 16px}
+.narrow{max-width:760px}
+h1,h2,h3{font-family:'Cormorant Garamond',Georgia,serif;font-weight:700;line-height:1.06;letter-spacing:-.01em}
+h1{font-size:clamp(44px,8vw,86px)}
+h2{font-size:clamp(34px,5vw,54px);margin-bottom:14px}
+h3{font-size:27px;margin-bottom:6px}
+.eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;color:var(--gold)}
+.lede{font-size:clamp(18px,2.2vw,21px);color:var(--text2);max-width:640px}
+.serif{font-family:'Cormorant Garamond',Georgia,serif}
+section{padding:96px 0;position:relative}
+.btn{display:inline-flex;align-items:center;gap:10px;padding:15px 24px;border-radius:14px;font-weight:600;text-decoration:none;font-size:16px;transition:transform .15s, box-shadow .15s}
+.btn:hover{transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,#D4B062,#B38A3E);color:#070B16;box-shadow:0 10px 30px rgba(212,176,98,.25)}
+.btn.ghost{border:1px solid var(--gold);color:var(--gold)}
+.btn.quiet{color:var(--text2);padding-left:6px;padding-right:6px}
+.btn svg{width:20px;height:20px}
+
+/* nav */
+.top{position:fixed;inset:0 0 auto 0;z-index:20;background:rgba(7,11,22,.72);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid rgba(34,48,82,.6)}
+.top .wrap{display:flex;align-items:center;height:62px;gap:20px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--gold-soft);font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:700}
+.brand img{width:32px;height:32px;border-radius:8px}
+.top nav{margin-left:auto;display:flex;gap:22px;align-items:center}
+.top nav a{color:var(--text2);text-decoration:none;font-size:14.5px}
+.top nav a.btn{color:#070B16;padding:9px 16px;font-size:14px}
+@media(max-width:760px){.top nav a:not(.btn){display:none}}
+
+/* hero */
+.hero{min-height:100svh;display:flex;align-items:flex-end;padding:120px 0 70px;overflow:hidden}
+.hero .bg{position:absolute;inset:0;background:url(img/witness.jpg) center/cover no-repeat;transform:scale(1.04)}
+.hero .bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,11,22,.35) 0%,rgba(7,11,22,.55) 45%,var(--bg) 100%)}
+.hero .wrap{position:relative;display:grid;grid-template-columns:1.25fr .75fr;gap:48px;align-items:end;width:100%}
+.hero h1 em{font-style:normal;color:var(--gold-soft)}
+.hero .lede{margin:22px 0 30px;color:#D6DBE6}
+.cta{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.small{font-size:13px;color:var(--text3);margin-top:14px}
+.phone{border-radius:38px;border:8px solid #1b2238;overflow:hidden;box-shadow:0 40px 80px rgba(0,0,0,.55),0 0 0 1px rgba(212,176,98,.25);background:#000;aspect-ratio:390/844;max-width:300px;margin-left:auto}
+.phone img{width:100%;height:100%;object-fit:cover}
+@media(max-width:900px){.hero .wrap{grid-template-columns:1fr}.hero .phone{display:none}}
+
+/* stat band */
+.band{padding:0;margin-top:-10px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.stats div{background:var(--surface);padding:28px 26px}
+.stats b{display:block;font-family:'Cormorant Garamond',serif;font-size:52px;line-height:1;color:var(--gold)}
+.stats span{color:var(--text2);font-size:15px}
+@media(max-width:760px){.stats{grid-template-columns:1fr}}
+
+/* split */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.split.rev .media{order:2}
+.media{border-radius:26px;overflow:hidden;box-shadow:0 30px 60px rgba(0,0,0,.4)}
+.media img{width:100%;height:100%;object-fit:cover}
+@media(max-width:860px){.split{grid-template-columns:1fr;gap:30px}.split.rev .media{order:0}}
+.verse{font-size:21px;color:var(--gold-soft);margin:18px 0;line-height:1.6}
+blockquote{font-family:'Cormorant Garamond',serif;font-size:28px;line-height:1.3;border-left:3px solid var(--gold);padding-left:20px;margin:22px 0}
+.map-legend{list-style:none;margin-top:18px;display:grid;gap:10px}
+.map-legend li{display:grid;grid-template-columns:14px 140px 1fr;gap:12px;align-items:baseline;color:var(--text2);font-size:15px}
+.map-legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
+.map-legend b{color:var(--text);font-family:'Cormorant Garamond',serif;font-size:20px}
+@media(max-width:520px){.map-legend li{grid-template-columns:14px 1fr}.map-legend li span{grid-column:2}}
+
+/* steps */
+.steps{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-top:40px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:22px;overflow:hidden;display:flex;flex-direction:column}
+.step .shot{aspect-ratio:390/600;overflow:hidden;background:#000}
+.step .shot img{width:100%;height:100%;object-fit:cover;object-position:top}
+.step .t{padding:18px 18px 22px}
+.step .n{font-family:'Cormorant Garamond',serif;color:var(--gold);font-size:18px;font-weight:700}
+.step p{color:var(--text2);font-size:15px}
+@media(max-width:980px){.steps{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.steps{grid-template-columns:1fr}}
+
+/* practices */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:36px}
+.tile{position:relative;border-radius:22px;overflow:hidden;min-height:230px;display:flex;align-items:flex-end;padding:22px;isolation:isolate}
+.tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-2}
+.tile::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(7,11,22,.15),rgba(7,11,22,.9));z-index:-1}
+.tile p{color:var(--text2);font-size:14.5px}
+@media(max-width:860px){.tiles{grid-template-columns:1fr 1fr}}
+@media(max-width:560px){.tiles{grid-template-columns:1fr}}
+
+/* tables */
+.tablewrap{overflow-x:auto;margin-top:30px;border:1px solid var(--line);border-radius:18px}
+table{width:100%;border-collapse:collapse;min-width:640px}
+th,td{text-align:left;padding:16px 18px;border-bottom:1px solid var(--line);vertical-align:top;font-size:15px}
+th{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);background:var(--surface)}
+td{color:var(--text2)}
+td:first-child{color:var(--text);font-weight:600;white-space:nowrap}
+tr:last-child td{border-bottom:none}
+
+.alt{background:var(--surface)}
+.note{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:16px;padding:22px 24px;color:var(--text2);margin-top:28px}
+.note b{color:var(--text)}
+
+/* download */
+.download{text-align:center;overflow:hidden}
+.download .bg{position:absolute;inset:0;background:url(img/boat_stars.jpg) center/cover;opacity:.45}
+.download .bg::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at center,rgba(7,11,22,.35),var(--bg) 75%)}
+.download .wrap{position:relative}
+.download .cta{justify-content:center;margin-top:30px}
+.install{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;text-align:left;margin-top:46px}
+.install div{background:rgba(21,29,51,.85);border:1px solid var(--line);border-radius:18px;padding:20px}
+.install b{font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--gold-soft);display:block;margin-bottom:4px}
+.install p{color:var(--text2);font-size:14.5px}
+@media(max-width:760px){.install{grid-template-columns:1fr}}
+
+details{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin-top:12px}
+summary{cursor:pointer;font-weight:600;list-style:none}
+summary::after{content:"+";float:right;color:var(--gold);font-size:22px;line-height:1}
+details[open] summary::after{content:"–"}
+details p{color:var(--text2);margin-top:10px;font-size:15.5px}
+
+footer{border-top:1px solid var(--line);padding:40px 0 60px;color:var(--text3);font-size:13.5px}
+footer a{color:var(--text2)}
+.reveal{opacity:0;transform:translateY(18px);transition:opacity .8s ease,transform .8s ease}
+.reveal.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
+</style>
+</head>
+<body>
+
+<header class="top"><div class="wrap">
+  <a class="brand" href="#"><img src="img/icon.png" alt="">OwnYourMind</a>
+  <nav>
+    <a href="#how">How it works</a>
+    <a href="#map">The map</a>
+    <a href="#science">Science</a>
+    <a href="#philosophy">Philosophy</a>
+    <a class="btn primary" href="#download">Get the app</a>
+  </nav>
+</div></header>
+
+<section class="hero">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <p class="eyebrow">Sakshi · the witness, in your pocket</p>
+      <h1>Watch the autopilot.<br><em>Take back the reins.</em></h1>
+      <p class="lede">Half of your waking life runs without you choosing it. OwnYourMind is an inner voice that knocks at
+        random moments, calls you by name, and asks: <i>who is driving right now?</i> Ten seconds to answer.
+        Over the days, it draws a map of where you go when you aren't here.</p>
+      <div class="cta">
+        <a class="btn primary" href="OwnYourMind.apk" download>
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5v2zm7-18l-5.5 5.5 1.41 1.41L11 5.83V16h2V5.83l3.09 3.08 1.41-1.41L12 2z" transform="rotate(180 12 12)"/></svg>
+          Download for Android
+        </a>
+        <a class="btn ghost" href="app/">Open the web app</a>
+        <a class="btn quiet" href="app/?demo=1">See a demo week →</a>
+      </div>
+      <p class="small">Free · no account · nothing leaves your phone · Android 7+</p>
+    </div>
+    <div class="phone"><img src="shots/now.jpg" alt="The Now screen: the inner voice greets you by name above an 'I am here' button and today's presence ring"></div>
+  </div>
+</section>
+
+<section class="band"><div class="wrap">
+  <div class="stats reveal">
+    <div><b>46.9%</b><span>of waking moments, the mind is somewhere other than what you're doing. People were less happy when it wandered. (Killingsworth &amp; Gilbert, <i>Science</i>, 2010)</span></div>
+    <div><b>10 sec</b><span>is all a witness check-in takes: where was attention, what was the mind doing, name the feeling, notice the body.</span></div>
+    <div><b>0</b><span>servers, accounts or uploads. Your inner map lives only on your device.</span></div>
+  </div>
+</div></section>
+
+<section id="chariot"><div class="wrap split">
+  <div class="media reveal"><img src="img/chariot.jpg" alt="Krishna as charioteer and Arjuna in the chariot, painting from 18th–19th century India"></div>
+  <div class="reveal">
+    <p class="eyebrow">Katha Upanishad 1.3.3–4</p>
+    <h2>You are the rider, not the chariot.</h2>
+    <p class="verse serif">आत्मानं रथिनं विद्धि शरीरं रथमेव तु ।<br>बुद्धिं तु सारथिं विद्धि मनः प्रग्रहमेव च ॥</p>
+    <p>"Know the Self as the lord of the chariot, the body as the chariot, the intellect as the charioteer and the mind
+      as the reins. The senses are the horses."</p>
+    <blockquote>When the charioteer sleeps, the horses choose the road. That is the autopilot.</blockquote>
+    <p style="color:var(--text2)">You can't see the autopilot from inside it. Something outside the loop has to knock at a moment you didn't
+      choose. Your phone is always with you, so it can do that.</p>
+  </div>
+</div></section>
+
+<section id="how" class="alt"><div class="wrap">
+  <p class="eyebrow">How it works</p>
+  <h2>Knock. Look. Reflect. Map.</h2>
+  <p class="lede">Four moves, repeated through the day until the voice is no longer the app's but yours.</p>
+  <div class="steps">
+    <div class="step reveal"><div class="shot"><img src="shots/onboarding.jpg" alt="Onboarding screen with the chariot painting" loading="lazy"></div>
+      <div class="t"><span class="n">1 · The knock</span><h3>Random witness pings</h3>
+      <p>At random moments in your waking hours, never on the hour: <i>"Pallav, who is driving?"</i> A silent anchor
+        notification keeps the witness in your status bar all day.</p></div></div>
+    <div class="step reveal"><div class="shot"><img src="shots/checkin.jpg" alt="Check-in asking where attention was: fully here, drifting, autopilot or reacting" loading="lazy"></div>
+      <div class="t"><span class="n">2 · The look</span><h3>A ten-second check-in</h3>
+      <p>Fully here, drifting, autopilot or reacting? What was the mind doing? Name the feeling. Feel the body.
+        Naming a feeling quiets the brain's alarm centre.</p></div></div>
+    <div class="step reveal"><div class="shot"><img src="shots/voice.jpg" alt="The inner voice reflecting a check-in back by name" loading="lazy"></div>
+      <div class="t"><span class="n">3 · The voice</span><h3>Reflected back, by name</h3>
+      <p>The inner voice speaks for the witness. It addresses you in the second person, which research shows calms
+        and clarifies. It never scolds: "You caught the autopilot. The one who noticed was not on autopilot."</p></div></div>
+    <div class="step reveal"><div class="shot"><img src="shots/map.jpg" alt="The Inner Map with five concentric rings for the koshas" loading="lazy"></div>
+      <div class="t"><span class="n">4 · The map</span><h3>Your inner map</h3>
+      <p>The five sheaths light up as you practise. It shows the hours your autopilot is strongest, where the mind goes,
+        which feelings pull which thoughts, and the loops you've caught.</p></div></div>
+  </div>
+</div></section>
+
+<section id="map"><div class="wrap split rev">
+  <div class="media reveal"><img src="shots/map2.jpg" alt="Inner Map reflections: when your autopilot is strongest, where the mind goes" loading="lazy"></div>
+  <div class="reveal">
+    <p class="eyebrow">Taittiriya Upanishad · Pancha Kosha</p>
+    <h2>A map of where you go when you're not here.</h2>
+    <p style="color:var(--text2)">The Upanishads describe five sheaths around the Self, from the outermost to the innermost. In
+      OwnYourMind they become five layers of awareness, and each one lights up as you feed it.</p>
+    <ul class="map-legend">
+      <li><i style="background:var(--coral)"></i><b>Annamaya</b><span>Body: noticed in check-ins and body scans</span></li>
+      <li><i style="background:#E9A04B"></i><b>Pranamaya</b><span>Breath: breathing, the Pause, urge surfing</span></li>
+      <li><i style="background:var(--teal)"></i><b>Manomaya</b><span>Mind: check-ins, catching loops, noting</span></li>
+      <li><i style="background:var(--violet)"></i><b>Vijnanamaya</b><span>Wisdom: Sankalpa, evening review, choosing in the gap</span></li>
+      <li><i style="background:var(--gold)"></i><b>Anandamaya</b><span>Bliss: moments fully here, "Who am I?"</span></li>
+    </ul>
+  </div>
+</div></section>
+
+<section class="alt"><div class="wrap">
+  <p class="eyebrow">Practice</p>
+  <h2>Short, many times a day.</h2>
+  <p class="lede">Seven practices, each with the real place it is named after. Every one is guided by voice and finishes in minutes.</p>
+  <div class="tiles">
+    <div class="tile reveal"><img src="img/bridge.jpg" alt="" loading="lazy"><div><h3>The Pause</h3><p>STOP in sixty seconds: stop, take a breath, observe, proceed. It widens the space between stimulus and response.</p></div></div>
+    <div class="tile reveal"><img src="img/mudra.jpg" alt="" loading="lazy"><div><h3>Noting</h3><p>Tap "thinking", "hearing", "wanting" as each arises. Mahasi-style training of the witness itself.</p></div></div>
+    <div class="tile reveal"><img src="img/waves.jpg" alt="" loading="lazy"><div><h3>Urge surfing</h3><p>Rate the urge every 30 seconds and watch your own wave rise, peak and fall.</p></div></div>
+    <div class="tile reveal"><img src="img/stillness.jpg" alt="" loading="lazy"><div><h3>RAIN</h3><p>Recognize, Allow, Investigate, Nurture: a way to meet a strong feeling without being swept away.</p></div></div>
+    <div class="tile reveal"><img src="img/cosmos.jpg" alt="" loading="lazy"><div><h3>The five sheaths</h3><p>A six-minute guided journey from body to bliss, ending at the witness of all five.</p></div></div>
+    <div class="tile reveal"><img src="img/witness.jpg" alt="" loading="lazy"><div><h3>Who am I?</h3><p>Ramana Maharshi's self-inquiry. When a thought arises, ask: to whom?</p></div></div>
+  </div>
+  <p class="note">Also inside: <b>Catch the autopilot</b> (cue → urge → choice → what it <i>actually</i> gave you), a
+    morning <b>Sankalpa</b> with an if–then plan, a Seneca-style <b>evening review</b>, a private journal, and a wisdom
+    library from the Gita, Kabir, Ramana, the Stoics and Frankl.</p>
+</div></section>
+
+<section id="science"><div class="wrap">
+  <p class="eyebrow">The science</p>
+  <h2>Every feature maps to evidence.</h2>
+  <div class="tablewrap reveal"><table>
+    <tr><th>Mechanism</th><th>What research found</th><th>In the app</th></tr>
+    <tr><td>Experience sampling</td><td>Random pings show what the mind is doing in real life. In 46.9% of samples people were mind-wandering, and less happy for it (Killingsworth &amp; Gilbert, 2010). Questionnaires overstate inner speech 2–4× compared with random samples (Hurlburt).</td><td>Random witness pings in waking hours, never on the hour</td></tr>
+    <tr><td>Affect labeling</td><td>Putting feelings into words reduced amygdala activity and engaged the right ventrolateral prefrontal cortex (Lieberman et al., 2007).</td><td>"Name the feeling" in every check-in; RAIN</td></tr>
+    <tr><td>Self-distancing</td><td>Talking to yourself by name or in the second person lowered distress and improved performance under stress across six studies (Kross et al., 2014).</td><td>The inner voice calls you by name, as "you"</td></tr>
+    <tr><td>Implementation intentions</td><td>"If X, then I will Y" plans: d ≈ 0.65 across 94 tests (Gollwitzer &amp; Sheeran, 2006). Smaller after bias correction in the 2024 update, but still positive.</td><td>Morning Sankalpa with an if–then plan</td></tr>
+    <tr><td>Reward re-valuation</td><td>Habits change when curiosity updates their reward value, not through willpower (Brewer).</td><td>Catch the autopilot: "what did it actually give you?"</td></tr>
+    <tr><td>Urge surfing</td><td>Urges rise and pass like waves when they aren't fed (Marlatt, relapse prevention).</td><td>Urge surfing with your own wave drawn live</td></tr>
+    <tr><td>Just-in-time support</td><td>Support at the right moment, adapted to state (Nahum-Shani et al., 2017). Evidence for mindfulness JITAIs is still early.</td><td>The voice adapts its reflection to your state and mind</td></tr>
+  </table></div>
+  <p class="note"><b>Honest limits.</b> No app makes anyone aware. A notification can only knock, and opening the door is
+    yours. App-based mindfulness shows modest average effects, and many people drop off within weeks. So OwnYourMind
+    favours many tiny moments over long sessions, and its real goal is to fade: after weeks of being knocked on, people
+    start knocking on themselves. Your self-caught share on the map tracks exactly that.</p>
+</div></section>
+
+<section id="philosophy" class="alt"><div class="wrap">
+  <p class="eyebrow">Philosophy</p>
+  <h2>One move, found everywhere.</h2>
+  <p class="lede">Step back from what you're experiencing and notice the one who is aware of it. Every serious tradition of the mind arrives here.</p>
+  <div class="tablewrap reveal"><table>
+    <tr><th>Tradition</th><th>Its name for the witness</th><th>Its practice</th></tr>
+    <tr><td>Upanishads · Advaita</td><td>Sakshi, the witness; the rider of the chariot</td><td>Neti neti; Ramana's "Who am I?"</td></tr>
+    <tr><td>Bhagavad Gita 6.5, 6.35</td><td>"Lift the self by the Self"</td><td>Abhyasa (practice) and vairagya (letting go)</td></tr>
+    <tr><td>Buddhism</td><td>Sati, mindfulness; sampajañña, clear knowing</td><td>Satipaṭṭhāna; Mahasi noting</td></tr>
+    <tr><td>Stoicism</td><td>Prosochē, attention to oneself</td><td>Seneca's evening review; Marcus' notes to himself</td></tr>
+    <tr><td>Gurdjieff</td><td>Self-remembering</td><td>"I am here, doing this"</td></tr>
+    <tr><td>Logotherapy</td><td>The space between stimulus and response</td><td>Choosing one's attitude</td></tr>
+    <tr><td>Kabir</td><td>"मोको कहाँ ढूँढे रे बन्दे, मैं तो तेरे पास में"</td><td>Stop searching outside; the seeker is the sought</td></tr>
+  </table></div>
+</div></section>
+
+<section id="download" class="download">
+  <div class="bg" aria-hidden="true"></div>
+  <div class="wrap narrow">
+    <p class="eyebrow">Begin</p>
+    <h2>Let the witness knock.</h2>
+    <p class="lede" style="margin:0 auto">The Android app does everything: random pings, the always-on anchor, voice guidance and
+      the full map. The web app works on any phone or laptop, but browsers can't send pings.</p>
+    <div class="cta">
+      <a class="btn primary" href="OwnYourMind.apk" download>Download OwnYourMind.apk</a>
+      <a class="btn ghost" href="app/">Open the web app</a>
+    </div>
+    <p class="small" id="apkmeta">Version 2.0 · 23 MB · for 64-bit phones (almost every phone since 2017). Older 32-bit phone? <a href="OwnYourMind-armv7.apk" download>Get the armv7 build</a>.</p>
+    <div class="install">
+      <div><b>1 · Download</b><p>Tap the button on your Android phone. If Chrome warns about the file, choose "Download anyway". It is the same app as the source.</p></div>
+      <div><b>2 · Allow &amp; install</b><p>Open the file. Android asks you to allow installs from Chrome once. Allow it, then tap Install.</p></div>
+      <div><b>3 · Let it knock</b><p>Allow notifications. In Settings › Apps › OwnYourMind › Battery, choose "Unrestricted" so pings arrive on time.</p></div>
+    </div>
+    <details style="text-align:left;margin-top:30px"><summary>Is my data private?</summary>
+      <p>Yes. There is no account, no server and no analytics. Every check-in, journal entry and map lives on your phone
+        (or in your browser, for the web app). You can copy all of it as JSON from Settings, or erase it in one tap.</p></details>
+    <details style="text-align:left"><summary>How many pings should I choose?</summary>
+      <p>Start with 6–10 a day. The times are random within your waking hours and never on the hour, so the knock keeps
+        surprising the autopilot. When you notice yourself catching the autopilot before the ping comes, lower the number.</p></details>
+    <details style="text-align:left"><summary>Is this therapy?</summary>
+      <p>No. It's a mirror and a practice companion, not a treatment. If you are struggling, please talk to someone you
+        trust or a professional. In India you can call Tele-MANAS on 14416.</p></details>
+  </div>
+</section>
+
+<footer><div class="wrap">
+  <p>OwnYourMind · by <a href="../">Pallav Sharma</a> · EzyMind ·
+    <a href="research.html">Research notes</a></p>
+  <p style="margin-top:8px">Photographs from <a href="https://unsplash.com">Unsplash</a> under the Unsplash License.
+    "Krishna and Arjuna on the chariot", 18th–19th century, India: public domain, via Wikimedia Commons.</p>
+</div></footer>
+
+<script>
+  const io = new IntersectionObserver((es) => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { threshold: .12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+</script>
+</body>
+</html>

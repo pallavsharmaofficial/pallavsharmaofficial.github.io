@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OwnYourMind · Research and philosophy</title>
+<meta name="description" content="The research and philosophy behind OwnYourMind: experience sampling, affect labeling, self-distancing, implementation intentions, the witness (Sakshi) and the five koshas.">
+<meta name="theme-color" content="#070B16"><link rel="icon" href="img/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#070B16;color:#EEF0F6;font:400 17px/1.7 Inter,system-ui,sans-serif}
+main{max-width:780px;margin:0 auto;padding:40px 16px 80px}
+a{color:#D4B062} h1,h2,h3{font-family:'Cormorant Garamond',Georgia,serif;line-height:1.1}
+h1{font-size:46px} h2{font-size:34px;margin-top:48px;color:#EBD49A}
+blockquote{border-left:3px solid #D4B062;margin:20px 0;padding:4px 18px;color:#EBD49A;font-family:'Cormorant Garamond',serif;font-size:22px}
+table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:14.5px} th,td{border:1px solid #223052;padding:10px;text-align:left;vertical-align:top}
+th{background:#0E1424;color:#D4B062} td{color:#A3ACBF} li{margin:6px 0;color:#C9CFDB} code{background:#151D33;padding:2px 6px;border-radius:6px}
+.back{display:inline-block;margin-bottom:20px;text-decoration:none}
+</style></head><body><main><a class="back" href="./">← OwnYourMind</a>
+<h1>OwnYourMind — research and philosophy</h1>
+<blockquote>
+<p><em>"Know the Self as the lord of the chariot, the body as the chariot,
+the intellect as the charioteer and the mind as the reins.
+The senses are the horses."</em> — Katha Upanishad 1.3.3–4</p>
+</blockquote>
+<p>This document is why the app is shaped the way it is. Each feature is matched
+to a practice that comes either from the contemplative traditions or from
+measured psychology, and ideally from both.</p>
+<h2>1. The problem: most of the day is spent on autopilot</h2>
+<ul>
+<li><strong>Mind-wandering is the default.</strong> Killingsworth &amp; Gilbert (2010, <em>Science</em>)
+  pinged 2,250 people at random moments through an iPhone app. In <strong>46.9 %</strong> of
+  samples, people were thinking about something other than what they were
+  doing. People were less happy while their minds wandered, and the time-lag
+  analysis suggested the wandering came first and the unhappiness followed.
+  Caveat: the study is observational, and the sample was self-selected
+  iPhone owners.</li>
+<li><strong>Habits run without being chosen.</strong> The cue → routine → reward loop does
+  its work below awareness. Judson Brewer's research reframes worry, craving
+  and scrolling as reward-based learning loops. His central claim is that a
+  habit changes sustainably only when its <em>reward value</em> is updated, and that
+  updating happens when we look clearly, with curiosity, at what the behaviour
+  actually gives us.</li>
+<li><strong>Two systems.</strong> Kahneman's System 1 (fast, automatic) and System 2 (slow,
+  deliberate) map onto the tradition's <em>manas</em> (the reactive mind) and
+  <em>buddhi</em> (the discerning intellect). The aim is not to kill System 1. It is
+  to put a charioteer back in the seat.</li>
+</ul>
+<p><strong>What this means for the app:</strong> you can't watch the autopilot from inside
+the autopilot. Something outside the loop has to interrupt it at random,
+unchosen moments. A phone that is always in your pocket can do exactly that.</p>
+<h2>2. The witness (Sakshi): the voice the app tries to grow</h2>
+<p>Every tradition that studies the mind arrives at the same move: step back
+from the content of experience and notice the one who is aware of it.</p>
+<table>
+<thead>
+<tr>
+<th>Tradition</th>
+<th>Name for it</th>
+<th>Practice</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upanishads / Advaita</td>
+<td><em>Sakshi</em>, the witness</td>
+<td><em>neti neti</em>; Ramana Maharshi's "Who am I?" self-inquiry</td>
+</tr>
+<tr>
+<td>Bhagavad Gita 6.5</td>
+<td><em>uddhared ātmanātmānam</em> — "lift the self by the Self"</td>
+<td><em>abhyasa</em> (practice) and <em>vairagya</em> (non-clinging)</td>
+</tr>
+<tr>
+<td>Buddhism</td>
+<td><em>sati</em> (mindfulness), <em>sampajañña</em> (clear knowing)</td>
+<td>Satipaṭṭhāna; Mahasi noting ("thinking… hearing…")</td>
+</tr>
+<tr>
+<td>Stoicism</td>
+<td><em>prosochē</em>, attention to oneself</td>
+<td>Marcus Aurelius' evening notes; Seneca's nightly review</td>
+</tr>
+<tr>
+<td>Gurdjieff</td>
+<td>self-remembering</td>
+<td>divided attention: "I am here, doing this"</td>
+</tr>
+<tr>
+<td>Logotherapy</td>
+<td>the <em>space</em> between stimulus and response</td>
+<td>choosing one's attitude (Frankl)</td>
+</tr>
+<tr>
+<td>Internal Family Systems</td>
+<td>Self vs. parts</td>
+<td>unblending: "a part of me is angry"</td>
+</tr>
+</tbody>
+</table>
+<p>The app's <strong>Inner Voice</strong> speaks <em>for</em> the witness, never for the parts. It
+doesn't scold, motivate or judge. It asks, names and reflects, then hands the
+choice back to you.</p>
+<h2>3. Practical mechanisms with evidence</h2>
+<table>
+<thead>
+<tr>
+<th>Mechanism</th>
+<th>Evidence</th>
+<th>How the app uses it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Random experience sampling</strong></td>
+<td>The ESM/DES method used by Killingsworth &amp; Gilbert and by Hurlburt's Descriptive Experience Sampling. Being asked "what was in your mind <em>just now</em>?" at an unchosen moment is the most accurate window into the autopilot we have. Hurlburt found that questionnaires report inner speech 2–4× more often than random samples do, so we know ourselves worse than we think.</td>
+<td><strong>Witness pings</strong>: random times during waking hours, never on the hour, so they can't become habitual. Each ping leads to a 10-second check-in: <em>Where was attention? What was the mind doing? Name the feeling. The body?</em></td>
+</tr>
+<tr>
+<td><strong>Affect labeling</strong></td>
+<td>Lieberman et al. (2007): putting a feeling into words reduced amygdala response and increased right ventrolateral prefrontal activity.</td>
+<td>Every check-in asks you to <strong>name</strong> the feeling from a short vocabulary. The RAIN practice repeats the move.</td>
+</tr>
+<tr>
+<td><strong>Self-distancing self-talk</strong></td>
+<td>Kross et al. (2014, <em>JPSP</em>, six studies): referring to yourself by name or in the second or third person lowered distress and improved performance under stress.</td>
+<td>The Inner Voice talks to you <strong>by your name, in the second person</strong> ("Pallav, what is the body saying?"). It is the witness speaking to the person.</td>
+</tr>
+<tr>
+<td><strong>Implementation intentions</strong></td>
+<td>Gollwitzer &amp; Sheeran (2006): d ≈ 0.65 across 94 tests. The 2024 update (642 tests) is smaller after bias correction (d ≈ 0.15–0.35) but still positive.</td>
+<td>Morning <strong>Sankalpa</strong> with an <em>if–then</em> plan: "If I reach for my phone without deciding to, then I will take one breath and ask who is reaching."</td>
+</tr>
+<tr>
+<td><strong>Curiosity over willpower</strong></td>
+<td>Brewer's habit-loop work: noticing what a behaviour really feels like updates its reward value.</td>
+<td><strong>Catch the autopilot</strong>: log the cue, the urge's strength, what you chose, and <em>how it actually felt</em>. The Map then shows you your own loops.</td>
+</tr>
+<tr>
+<td><strong>Urge surfing</strong></td>
+<td>Marlatt's relapse-prevention work: urges rise, peak and pass like waves, usually within minutes.</td>
+<td>The <strong>Urge surf</strong> practice: a breathing wave you ride until the urge falls.</td>
+</tr>
+<tr>
+<td><strong>Just-in-time support</strong></td>
+<td>Nahum-Shani et al. (2017) define JITAIs: the right support at the right moment. Evidence that this works for mindfulness is still early, mostly feasibility trials.</td>
+<td>Pings and the Inner Voice adapt to your last state. Two autopilot answers in a row bring a shorter, gentler prompt and a breath.</td>
+</tr>
+<tr>
+<td><strong>Evening review</strong></td>
+<td>The Stoic and Pythagorean nightly review, and Ignatius' Examen.</td>
+<td>The <strong>evening review</strong> asks: when was I awake? when was I asleep at the wheel? what would the witness do differently tomorrow?</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Honest limits.</strong> No app makes anyone aware. Awareness is the one thing a
+notification can't do <em>for</em> you. It can only knock. Large app-based
+mindfulness trials show modest average effects, and most users drop off
+within weeks. The design therefore favours <strong>many tiny moments over long
+sessions</strong>: a 10-second check-in, a 60-second pause, one breath. The aim is
+for the knock to become internal. After weeks of random pings, people start
+"pinging themselves". That is the point where the app's voice has become
+yours.</p>
+<h2>4. The map: Pancha Kosha, the five sheaths</h2>
+<p>The Taittiriya Upanishad describes the self as covered by five sheaths, from
+the outermost to the innermost. The app's <strong>Inner Map</strong> uses them as layers
+of awareness:</p>
+<ol>
+<li><strong>Annamaya</strong>, the body: did you notice the body? (body check-ins, posture, tension)</li>
+<li><strong>Pranamaya</strong>, breath and energy: breath practices, energy levels</li>
+<li><strong>Manomaya</strong>, the reactive mind: mind activity, feelings, urges, autopilot catches</li>
+<li><strong>Vijnanamaya</strong>, discernment: intentions kept, choices made in the gap, reviews</li>
+<li><strong>Anandamaya</strong>, bliss, the closest sheath to the Self: moments of being fully <em>here</em>, self-inquiry</li>
+</ol>
+<p>Each layer lights up as you practise it. Alongside the layers, the Map shows
+the <strong>hours of the day your autopilot is strongest</strong>, your most frequent mind
+activities and feelings, and the loops you've caught (cue → choice). It is a
+map of where you go when you are not there.</p>
+<h2>5. Design principles</h2>
+<ol>
+<li><strong>Ask, don't tell.</strong> The voice asks questions, and the answers belong to you.</li>
+<li><strong>Short beats long.</strong> Every interaction finishes in under a minute unless you choose a practice.</li>
+<li><strong>No shame.</strong> "Autopilot" is data, not failure. Catching it <em>is</em> awareness.</li>
+<li><strong>Private.</strong> Everything stays on the device. No account, no server.</li>
+<li><strong>Real world.</strong> Images of real places: forests, mountains, water, sky. They pull attention out of the screen.</li>
+<li><strong>Fade the app.</strong> The best outcome is needing it less: fewer pings, more self-catches.</li>
+</ol>
+<h2>Sources</h2>
+<ul>
+<li>Killingsworth, M. A., &amp; Gilbert, D. T. (2010). A wandering mind is an unhappy mind. <em>Science</em>, 330(6006), 932.</li>
+<li>Kross, E., et al. (2014). Self-talk as a regulatory mechanism: How you do it matters. <em>JPSP</em>, 106(2), 304–324.</li>
+<li>Lieberman, M. D., et al. (2007). Putting feelings into words: affect labeling disrupts amygdala activity. <em>Psychological Science</em>, 18(5), 421–428.</li>
+<li>Gollwitzer, P. M., &amp; Sheeran, P. (2006). Implementation intentions and goal achievement. <em>Adv. Exp. Soc. Psychol.</em>, 38, 69–119. Sheeran, Listrom &amp; Gollwitzer (2024) update.</li>
+<li>Nahum-Shani, I., et al. (2017). Just-in-time adaptive interventions in mobile health. <em>Annals of Behavioral Medicine</em>.</li>
+<li>Hurlburt, R. T., Heavey, C. L., &amp; Kelsey, J. M. (2013). Toward a phenomenology of inner speaking. <em>Consciousness and Cognition</em>.</li>
+<li>Brewer, J. (2021). <em>Unwinding Anxiety</em>. Avery.</li>
+<li>Marlatt, G. A., &amp; Gordon, J. R. (1985). <em>Relapse Prevention</em>.</li>
+<li>Frankl, V. (1946). <em>Man's Search for Meaning</em>.</li>
+<li>Katha Upanishad 1.3.3–4; Taittiriya Upanishad 2; Bhagavad Gita 6.5–6, 6.35; Ramana Maharshi, <em>Who am I? (Nan Yar)</em>.</li>
+<li>Marcus Aurelius, <em>Meditations</em>; Seneca, <em>De Ira</em> 3.36.</li>
+</ul>
+<h2>Image credits</h2>
+<p>Photographs are from <a href="https://unsplash.com">Unsplash</a> and used under the
+Unsplash License. The painting <em>Krishna and Arjuna on the chariot</em>
+(18th–19th century, India) is public domain, via Wikimedia Commons.</p>
+</main></body></html>

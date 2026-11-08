@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="/ownyourmind/app/">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="OwnYourMind — the inner voice that watches your autopilot. Random witness pings, an Inner Map of your mind, and practices from the Upanishads to modern psychology.">
+  <meta name="theme-color" content="#070B16">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="OwnYourMind">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <link rel="icon" type="image/png" href="favicon.png"/>
+  <title>OwnYourMind · Inner Voice</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    html, body { margin: 0; height: 100%; background: #070B16; }
+    #oym-splash { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 18px; color: #D4B062; font: 500 15px/1.4 Georgia, serif; letter-spacing: .08em; transition: opacity .5s; }
+    #oym-splash img { width: 88px; height: 88px; border-radius: 22px; animation: oym-breathe 4s ease-in-out infinite; }
+    @keyframes oym-breathe { 0%,100% { transform: scale(.92); opacity: .75 } 50% { transform: scale(1.04); opacity: 1 } }
+  </style>
+</head>
+<body>
+  <div id="oym-splash"><img src="icons/Icon-192.png" alt=""><div>Breathe in… the witness is waking</div></div>
+  <script>
+    window.addEventListener('flutter-first-frame', function () {
+      var s = document.getElementById('oym-splash'); if (s) { s.style.opacity = 0; setTimeout(function () { s.remove(); }, 600); }
+    });
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
