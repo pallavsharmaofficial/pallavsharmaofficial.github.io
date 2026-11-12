@@ -1,2 +1,5 @@
 assets/*.psd
 .DS_Store
+
+# Chehra: clean source is private; only the obfuscated bundle (chehra/app.min.js) ships
+chehra/src/
