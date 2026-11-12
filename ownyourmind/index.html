@@ -152,6 +152,7 @@ footer a{color:var(--text2)}
   <nav>
     <a href="#how">How it works</a>
     <a href="#map">The map</a>
+    <a href="#library">Library</a>
     <a href="#science">Science</a>
     <a href="#philosophy">Philosophy</a>
     <a class="btn primary" href="#download">Get the app</a>
@@ -175,7 +176,7 @@ footer a{color:var(--text2)}
         <a class="btn ghost" href="app/">Open the web app</a>
         <a class="btn quiet" href="app/?demo=1">See a demo week →</a>
       </div>
-      <p class="small">Free · no account · nothing leaves your phone · Android 7+</p>
+      <p class="small">Free · no account · encrypted backup · Android 7+</p>
     </div>
     <div class="phone"><img src="shots/now.jpg" alt="The Now screen: the inner voice greets you by name above an 'I am here' button and today's presence ring"></div>
   </div>
@@ -185,7 +186,7 @@ footer a{color:var(--text2)}
   <div class="stats reveal">
     <div><b>46.9%</b><span>of waking moments, the mind is somewhere other than what you're doing. People were less happy when it wandered. (Killingsworth &amp; Gilbert, <i>Science</i>, 2010)</span></div>
     <div><b>10 sec</b><span>is all a witness check-in takes: where was attention, what was the mind doing, name the feeling, notice the body.</span></div>
-    <div><b>0</b><span>servers, accounts or uploads. Your inner map lives only on your device.</span></div>
+    <div><b>86</b><span>feelings in ten families, plus 27 mind states and 36 body states. The words you use most come first, and you can add your own.</span></div>
   </div>
 </div></section>
 
@@ -261,6 +262,23 @@ footer a{color:var(--text2)}
     library from the Gita, Kabir, Ramana, the Stoics and Frankl.</p>
 </div></section>
 
+<section id="library"><div class="wrap">
+  <p class="eyebrow">New in 2.1 · Library</p>
+  <h2>Stories that wake you up.</h2>
+  <p class="lede">13 old stories retold, and 12 short articles on the science of autopilot. Each one ends with a question to reflect on and a practice for today, and the app can read it aloud.</p>
+  <div class="tiles">
+    <div class="tile reveal"><img src="img/bird.jpg" alt="" loading="lazy"><div><h3>Two Birds on One Tree</h3><p>One eats the fruit, one watches. From the Mundaka Upanishad, the oldest picture of the witness.</p></div></div>
+    <div class="tile reveal"><img src="img/horse.jpg" alt="" loading="lazy"><div><h3>Ask the Horse</h3><p>"Where are you going?" "I don't know, ask the horse!" A Zen story about habit energy.</p></div></div>
+    <div class="tile reveal"><img src="img/elephant.jpg" alt="" loading="lazy"><div><h3>The Elephant and the Rope</h3><p>The strongest animal, held by a thin rope it learned to believe in as a baby.</p></div></div>
+    <div class="tile reveal"><img src="img/deer.jpg" alt="" loading="lazy"><div><h3>The Musk Deer</h3><p>Kabir's deer searches the whole forest for a scent it carries itself.</p></div></div>
+    <div class="tile reveal"><img src="img/stream.jpg" alt="" loading="lazy"><div><h3>Are You Still Carrying Her?</h3><p>Two monks, a river, and the thing we keep replaying for hours.</p></div></div>
+    <div class="tile reveal"><img src="img/lake_boat.jpg" alt="" loading="lazy"><div><h3>The Empty Boat</h3><p>Zhuangzi on anger: who was really steering the boat that hit you?</p></div></div>
+  </div>
+  <p class="note">Articles include <b>Name It to Tame It</b> (emotional granularity), <b>How Autopilot Is Built</b>
+    (the habit loop), <b>Talk to Yourself Like a Friend</b>, <b>If–Then: The Smallest Plan That Works</b>, <b>Urges Are
+    Waves</b>, <b>The Phone in Your Hand</b>, <b>Your Body Knows First</b> and <b>Your First 30 Days</b>.</p>
+</div></section>
+
 <section id="science"><div class="wrap">
   <p class="eyebrow">The science</p>
   <h2>Every feature maps to evidence.</h2>
@@ -307,15 +325,21 @@ footer a{color:var(--text2)}
       <a class="btn primary" href="OwnYourMind.apk" download>Download OwnYourMind.apk</a>
       <a class="btn ghost" href="app/">Open the web app</a>
     </div>
-    <p class="small" id="apkmeta">Version 2.0 · 23 MB · for 64-bit phones (almost every phone since 2017). Older 32-bit phone? <a href="OwnYourMind-armv7.apk" download>Get the armv7 build</a>.</p>
+    <p class="small" id="apkmeta">Version 2.1 · 26 MB · for 64-bit phones (almost every phone since 2017). Older 32-bit phone? <a href="OwnYourMind-armv7.apk" download>Get the armv7 build</a>.</p>
     <div class="install">
       <div><b>1 · Download</b><p>Tap the button on your Android phone. If Chrome warns about the file, choose "Download anyway". It is the same app as the source.</p></div>
       <div><b>2 · Allow &amp; install</b><p>Open the file. Android asks you to allow installs from Chrome once. Allow it, then tap Install.</p></div>
       <div><b>3 · Let it knock</b><p>Allow notifications. In Settings › Apps › OwnYourMind › Battery, choose "Unrestricted" so pings arrive on time.</p></div>
     </div>
     <details style="text-align:left;margin-top:30px"><summary>Is my data private?</summary>
-      <p>Yes. There is no account, no server and no analytics. Every check-in, journal entry and map lives on your phone
-        (or in your browser, for the web app). You can copy all of it as JSON from Settings, or erase it in one tap.</p></details>
+      <p>Yes. There is no account and no analytics. Everything lives on your phone (or in your browser, for the web
+        app). The optional cloud backup is encrypted on your phone before upload, with a key made from your recovery
+        code, so the server holds only unreadable ciphertext. You can copy all your data as JSON, delete the cloud copy,
+        or erase everything from Settings.</p></details>
+    <details style="text-align:left"><summary>What happens if I reinstall or change phones?</summary>
+      <p>Reinstall on the same phone: your data comes back automatically from the encrypted backup. New phone or the web
+        app: tap "Restore with your recovery code" on the first screen. The code is in Settings › Backup &amp; restore,
+        so keep it somewhere safe. Android's own Google backup also covers the app.</p></details>
     <details style="text-align:left"><summary>How many pings should I choose?</summary>
       <p>Start with 6–10 a day. The times are random within your waking hours and never on the hour, so the knock keeps
         surprising the autopilot. When you notice yourself catching the autopilot before the ping comes, lower the number.</p></details>

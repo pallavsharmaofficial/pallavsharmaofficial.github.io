@@ -158,6 +158,23 @@ sessions</strong>: a 10-second check-in, a 60-second pause, one breath. The aim 
 for the knock to become internal. After weeks of random pings, people start
 "pinging themselves". That is the point where the app's voice has become
 yours.</p>
+<h2>3b. Precision: emotional granularity (added in 2.1)</h2>
+<p>People who can tell their negative feelings apart precisely ("irritated" versus
+"resentful" versus "disappointed") tend to regulate them better. A review by
+Kashdan, Barrett &amp; McKnight (2015, <em>Current Directions in Psychological
+Science</em>) found they are also less likely to fall back on blunt strategies such
+as drinking or aggression. Version 2.1 therefore offers:</p>
+<ul>
+<li><strong>86 feelings in ten families</strong> (peaceful, joyful, loving, engaged, afraid, angry, sad, ashamed, unsettled, low energy)</li>
+<li><strong>27 mind states</strong> in six families and <strong>36 body states</strong> by region (head, throat and chest, belly, back, limbs, whole body)</li>
+<li><strong>Up to three picks</strong>, strongest first, because blends are normal</li>
+<li><strong>An intensity scale</strong> for feelings: faint, clear or strong</li>
+<li><strong>Your own words</strong>, saved for next time</li>
+</ul>
+<p>To keep this simple, the picker shows only your most-used words first. They are
+ranked by how often and how recently you picked them, with a 30-day half-life,
+and the first pick of a moment counts most. Everything else is one tap away,
+grouped and searchable.</p>
 <h2>4. The map: Pancha Kosha, the five sheaths</h2>
 <p>The Taittiriya Upanishad describes the self as covered by five sheaths, from
 the outermost to the innermost. The app's <strong>Inner Map</strong> uses them as layers
@@ -182,6 +199,12 @@ map of where you go when you are not there.</p>
 <li><strong>Real world.</strong> Images of real places: forests, mountains, water, sky. They pull attention out of the screen.</li>
 <li><strong>Fade the app.</strong> The best outcome is needing it less: fewer pings, more self-catches.</li>
 </ol>
+<h2>6. Keeping your data (added in 2.1)</h2>
+<ul>
+<li><strong>Encrypted cloud backup (Supabase).</strong> Everything is encrypted on the phone with AES-256-GCM. The key comes from a 20-character recovery code that never leaves the device. The server stores only hashes as row IDs, plus ciphertext. On Android the code is also stored wrapped with a key derived from the device's Android ID, which survives a reinstall when the app is signed with the same key. So reinstalling on the same phone restores everything without typing anything. On a new phone or in the web app, you enter the recovery code.</li>
+<li><strong>Android Auto Backup.</strong> The app opts into Android's own backup to the phone's Google account, as a second layer.</li>
+<li><strong>Google sign-in</strong> is not included. It needs a Google Cloud OAuth client and Supabase sign-ups switched on, and the shared Supabase project has public sign-up switched off for its other app.</li>
+</ul>
 <h2>Sources</h2>
 <ul>
 <li>Killingsworth, M. A., &amp; Gilbert, D. T. (2010). A wandering mind is an unhappy mind. <em>Science</em>, 330(6006), 932.</li>
@@ -195,6 +218,7 @@ map of where you go when you are not there.</p>
 <li>Frankl, V. (1946). <em>Man's Search for Meaning</em>.</li>
 <li>Katha Upanishad 1.3.3–4; Taittiriya Upanishad 2; Bhagavad Gita 6.5–6, 6.35; Ramana Maharshi, <em>Who am I? (Nan Yar)</em>.</li>
 <li>Marcus Aurelius, <em>Meditations</em>; Seneca, <em>De Ira</em> 3.36.</li>
+<li>Kashdan, T. B., Barrett, L. F., &amp; McKnight, P. E. (2015). Unpacking emotion differentiation. <em>Current Directions in Psychological Science</em>, 24(1), 10–16.</li>
 </ul>
 <h2>Image credits</h2>
 <p>Photographs are from <a href="https://unsplash.com">Unsplash</a> and used under the
